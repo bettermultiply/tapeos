@@ -26,13 +26,17 @@ pub(crate) struct Resource {
     // interpreter is a trait that can be implemented by different 
     // interpreters. For subsystems, this field is set to None.
     interpreter: Option<Box<dyn Interpreter>>, 
+    // properties is a map of properties of the resource.
+    properties: HashMap<String, String>,
     // TODO: other fields as needed
 }   
 
 impl Resource {
-    fn new(name: String, status: Status, description: String, command: Vec<String>, interpreter: Option<Box<dyn Interpreter>>) -> Self {
+    fn new(name: String, status: Status, description: String, 
+        command: Vec<String>, interpreter: Option<Box<dyn Interpreter>>, 
+        properties: HashMap<String, String>) -> Self {
         Self { id: generate_id(IdType::Resource), 
-            name, status, description, command, interpreter }
+            name, status, description, command, interpreter, properties }
     }
 
     pub fn get_id(&self) -> i64 {

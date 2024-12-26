@@ -10,6 +10,10 @@ mod core {
         pub mod router {
             pub mod router;
         }
+        pub mod disassembler {
+            pub mod dis;
+        }
+        pub mod intent;
     }
     pub mod comm {
 

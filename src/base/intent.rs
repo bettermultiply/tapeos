@@ -44,18 +44,18 @@ impl<'a> Intent<'a> {
     }
 }
 
-fn intent_extract(intent: &Intent) -> String {
+pub fn intent_extract(intent: &Intent) -> String {
     // TODO: implement the logic to extract the intent
     intent.description.clone()
 }
 
 // TODO: do we really need this?
-fn intent_serialize(intent: &Intent) -> String {
+pub fn intent_serialize(intent: &Intent) -> String {
     // TODO: implement the logic to serialize the intent
     intent.description.clone()
 }
 
-fn intent_deserialize(intent: &Intent) -> String {
+pub fn intent_deserialize(intent: &Intent) -> String {
     // TODO: implement the logic to deserialize the intent
     intent.description.clone()
 }

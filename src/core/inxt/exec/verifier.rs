@@ -2,7 +2,9 @@
 // the verifier will verify the specific execution of intent and their dependency
 // Try to find the best way to execute it. If there is any conflict, it will info the distributer to redistribute the intent.
 
-fn verify_intent(intent: &str) -> bool {
+use crate::base::intent::Intent;
+
+pub fn verify_intent(intent: &Intent) -> bool {
     // TODO: implement the logic to verify the intent
     true
 }

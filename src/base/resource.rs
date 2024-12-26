@@ -11,6 +11,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
+use bluer::{Device, gatt::remote::Characteristic};
+
 lazy_static! {
     pub static ref RESOURCES: Mutex<Vec<Box<dyn Resource>>> = Mutex::new(Vec::new());
 }
@@ -21,7 +23,7 @@ lazy_static! {
 //intent and then execute it. *subsystem* is a special resource, which can 
 // process intents, which means it do not need an interpreter to interpret 
 // the intent.
-pub(crate) trait Resource: Send + Sync {
+pub trait Resource: Send + Sync {
     fn get_id(&self) -> i64;
     fn get_name(&self) -> &str;
     fn get_status(&self) -> &Status;
@@ -35,6 +37,10 @@ pub(crate) trait Resource: Send + Sync {
 pub(crate) struct BluetoothResource {
     // id is a unique identifier for the resource, can't be changed.
     id: i64,
+
+    device: Device,
+
+    char: Characteristic,
     // name can be easily identified by the user.
     name: String,
     // remote_address is the address of the resource.
@@ -77,8 +83,8 @@ impl BluetoothResource {
         properties: HashMap<String, String>, remote_address: Address, 
         address_type: AddressType, uuids: HashSet<Uuid>, alias: String, 
         service_data: HashMap<Uuid, Vec<u8>>, class: u32, legacy_pairing: bool, 
-        rssi: i16, service_resolved: bool) -> Self {
-        Self { id: generate_id(IdType::Resource), name, status, description, command, interpreter, properties, remote_address, address_type, uuids, alias, service_data, class, legacy_pairing, rssi, service_resolved }
+        rssi: i16, service_resolved: bool, device: Device, char: Characteristic) -> Self {
+        Self { id: generate_id(IdType::Resource), name, status, description, command, interpreter, properties, remote_address, address_type, uuids, alias, service_data, class, legacy_pairing, rssi, service_resolved, device, char }
     }
 
     pub fn get_remote_address(&self) -> &Address {

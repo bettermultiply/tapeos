@@ -7,12 +7,14 @@
 // 2. wifi
 // 3. internet
 
-use bluer::{Adapter, AdapterEvent, Address, DeviceEvent, DiscoveryFilter, DiscoveryTransport};
-use futures::{pin_mut, stream::SelectAll, StreamExt};
-use std::{collections::HashSet, env, error::Error};
+use bluer::{Adapter, AdapterEvent, Address, Device, gatt::remote::Characteristic};
+use futures::{pin_mut, StreamExt};
+use std::{error::Error, time::Duration};
 use crate::base::resource::{BluetoothResource, Status, Position, RESOURCES};
 use std::collections::HashMap;
 use std::time;
+use tokio::time::sleep;
+
 
 enum SeekMethod {
     Bluetooth,
@@ -68,82 +70,113 @@ fn seek_by_bluetooth() -> Result<(), Box<dyn Error>> {
 
 // seek by bluetooth on linux
 async fn seek_bluetooth_linux() -> bluer::Result<()> {
+
+    env_logger::init();
+
     let session = bluer::Session::new().await?;
-    let adapter = session.default_adapter().await?; // -> ErrorKind::NotFound
-    println!("Discovering devices using Bluetooth adapter {}\n", adapter.name());
-    adapter.set_powered(true).await?; // the value of this property is not persistent.
-
-    // TODO: these parameters should be set by the user.
-    // And we need a configuration file to store these parameters.
-    let le_only = false;
-    let br_edr_only = false;
-    let filter = DiscoveryFilter {
-        transport: if le_only {
-            DiscoveryTransport::Le
-        } else if br_edr_only {
-            DiscoveryTransport::BrEdr
-        } else {
-            DiscoveryTransport::Auto
-        },
-        ..Default::default()
-    };
-    adapter.set_discovery_filter(filter).await?;
-    println!("Using discovery filter:\n{:#?}\n\n", adapter.discovery_filter().await);
-
-    // start to discover the devices
-    // all already known devices are also included in the stream. we can check the Device::rssi peoperty to see if it is already known.
-    let device_events = adapter.discover_devices().await?;
-    pin_mut!(device_events);
-     
-    // TODO: these parameters should be set by the user.
-    // And we need a configuration file to store these parameters.
-    let filter_addr: HashSet<_> = env::args().filter_map(|arg| arg.parse::<Address>().ok()).collect();
-
-    let mut all_change_events = SelectAll::new();
-
-    // TODO: leave the loop in specific time.
-    loop {
-        tokio::select! {
-            Some(device_event) = device_events.next() => {
-                match device_event {
-                    // Add and remove operations are happened for adapter.
-                    AdapterEvent::DeviceAdded(addr) => {
-                        if !filter_addr.is_empty() && !filter_addr.contains(&addr) {
-                            continue;
+    let adapter = session.default_adapter().await?;
+    adapter.set_powered(true).await?;
+    {
+        println!(
+            "Discovering on Bluetooth adapter {} with address {}", 
+            adapter.name(), 
+            adapter.address().await?
+        );
+        let discover = adapter.discover_devices().await?;
+        pin_mut!(discover);
+        let mut done = false;
+        while let Some(event) = discover.next().await {
+            match event {
+                AdapterEvent::DeviceAdded(addr) => {
+                    println!("Found device: {addr}");
+                    let device = adapter.device(addr)?;
+                    match find_tape_characteristic(device).await? {
+                        Ok(Some(char)) => {
+                            println!("    find tapeos {:?}", char);
+                            done = true;
+                        },
+                        Ok(None) => (),
+                        Err(err) => {
+                            println!("    Device failed: {}", err);
+                            let _ = adapter.remove_device(addr).await;
                         }
-
-                        println!("Device added: {addr}");
-                        store_bluetooth_device(&adapter, addr).await?;
-                        let device = adapter.device(addr)?;
-                        let change_events = device.events().await?.map(move |evt| (addr, evt));
-                        all_change_events.push(change_events);
                     }
-                    AdapterEvent::DeviceRemoved(addr) => {
-                        // TODO: remove the device from the resource pool.
-                        println!("Device removed: {addr}");
-                    }
-                    _ => (),
                 }
+                AdapterEvent::DeviceRemoved(addr) => {
+                    println!("Device removed: {addr}");
+                }
+                _ => (),
             }
-            Some((addr, DeviceEvent::PropertyChanged(property))) = all_change_events.next() => {
-                // TODO: update the device properties in the resource pool.
-                println!("Device changed: {addr}");
-                println!("    {property:?}");
+            if done {
+                break;
             }
-            else => break
         }
+        println!("Discovery completed");
     }
 
     Ok(())
 }
 
-// create new resource and store the bluetooth device properties into the resource pool
-async fn store_bluetooth_device(adapter: &Adapter, addr: Address) -> bluer::Result<()> {
+// Tape-related constants and types
+const TAPE_SERVICE_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00001234_0000_1000_8000_00805f9b34fb); // Example UUID
+const TAPE_CHARACTERISTIC_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00005678_0000_1000_8000_00805f9b34fb); // Example UUID
+
+async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result<Option<Characteristic>>> {
+    let addr = device.address();
+    let uuids = device.uuids().await?.unwrap_or_default();
+    println!("Discovered device {} with service UUIDs {:?}", addr, &uuids);
+    let md = device.manufacturer_data().await?;
+    println!("    Manufacturer data: {:x?}", md);
+
+    if uuids.contains(&TAPE_SERVICE_UUID) {
+        println!("    Device provides tape service");
+
+        sleep(Duration::from_secs(2)).await;
+        if !device.is_connected().await? {
+            println!("    Connecting...");
+            let mut retries = 2; // TODO: make it configurable
+            loop {
+                match device.connect().await {
+                    Ok(()) => break,
+                    Err(err) if retries > 0 => {
+                        println!("    Connect error: {:?}", &err);
+                        retries -= 1;
+                    }
+                    Err(err) => return Err(err),
+                }
+            }
+            println!("    Connected");
+        } else {
+            println!("    Already connected");
+        }
+
+        for service in device.services().await? {
+            if TAPE_SERVICE_UUID == service.uuid().await? {
+                for cha in service.characteristics().await? {
+                    if TAPE_CHARACTERISTIC_UUID == cha.uuid().await? {
+                        let c = cha.clone();
+                        store_bluetooth_device(device, cha).await?;
+                        return Ok(Ok(Some(c)));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Ok(None))
+}
+
+async fn connect_bluetooth_device(adapter: &Adapter, addr: Address) -> bluer::Result<()> {
     let device = adapter.device(addr)?;
-    // TODO: Maybe the better way is to use props.
-    // let props = device.all_properties().await?;
+    device.connect().await?;
+    Ok(())
+}
+
+// create new resource and store the bluetooth device properties into the resource pool
+async fn store_bluetooth_device(device: Device, char: Characteristic) -> bluer::Result<()> {
     let resource = BluetoothResource::new(
         device.name().await?.unwrap_or_default(), 
+        
         Status::new(true, Position::new(0.0, 0.0, 0.0), time::Duration::from_secs(0), device.is_paired().await?, device.is_connected().await?, device.is_trusted().await?, device.is_blocked().await?),
         "".to_string(), 
         vec![], 
@@ -157,7 +190,9 @@ async fn store_bluetooth_device(adapter: &Adapter, addr: Address) -> bluer::Resu
         device.class().await?.unwrap_or_default(), 
         device.is_legacy_pairing().await?, 
         device.rssi().await?.unwrap_or_default(), 
-        device.is_services_resolved().await?
+        device.is_services_resolved().await?,
+        device, 
+        char,
     );
     RESOURCES.lock().unwrap().push(Box::new(resource));
     Ok(())

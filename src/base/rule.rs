@@ -5,7 +5,10 @@ use std::sync::LazyLock;
 use crate::tools::idgen::{generate_id, IdType};
 
 pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());
-struct Rule {
+
+
+#[allow(unused)]
+pub struct Rule {
     id: i64,
     name: String,
     description: String,

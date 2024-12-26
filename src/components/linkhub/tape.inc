@@ -5,4 +5,4 @@ const TAPE_CHARACTERISTIC_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00001524_12
 
 // Manufaturer id for LE advertise.
 #[allow(dead_code)]
-const TAPE_MANUFACTURER_ID: u16 = 0x0000;
+const TAPE_MANUFACTURER_ID: u16 = 0xf00d;

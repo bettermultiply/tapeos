@@ -11,7 +11,7 @@ pub fn distribute(sub_intents: &[Intent]) {
         select_resource(sub_intent);
         // TODO: implement the logic to distribute the sub-intent to the corresponding resource or subsystem
     }
-
+    
 }
 
 // TODO: when shall we select the resource? when disassemble? when distribute?

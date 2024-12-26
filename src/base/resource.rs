@@ -33,7 +33,7 @@ pub trait Resource: Send + Sync {
     fn set_command(&mut self, command: Vec<String>);
     fn set_interpreter(&mut self, interpreter: Option<Box<dyn Interpreter>>);
 }
-
+#[allow(unused)]
 pub(crate) struct BluetoothResource {
     // id is a unique identifier for the resource, can't be changed.
     id: i64,
@@ -77,6 +77,7 @@ pub(crate) struct BluetoothResource {
 
 }
 
+#[allow(unused)]
 impl BluetoothResource {
     pub fn new(name: String, status: Status, description: String, 
         command: Vec<String>, interpreter: Option<Box<dyn Interpreter>>, 
@@ -160,7 +161,8 @@ impl BluetoothResource {
     }
 }
 
-    impl Resource for BluetoothResource {
+#[allow(unused)]
+impl Resource for BluetoothResource {
     fn get_id(&self) -> i64 {
         self.id
     }
@@ -196,7 +198,8 @@ impl BluetoothResource {
 }
 
 // Status is unique for each resource. However, there are some common statuses.
-pub(crate) struct Status {
+#[allow(unused)]
+pub struct Status {
     // aviliability shows the resource is available or not.
     aviliability: bool,
     // paired shows the resource is paired or not.
@@ -214,6 +217,7 @@ pub(crate) struct Status {
     // TODO: other fields as needed
 }
 
+#[allow(unused)]
 impl Status {
     pub fn new(aviliability: bool, position: Position, busy_time: Duration, 
         paired: bool, connected: bool, trusted: bool, blocked: bool) -> Self {
@@ -231,6 +235,7 @@ impl Status {
 
 // position is a common field for all resources.
 // it is a 3D vector, which can be used to describe the position of the resource.
+#[allow(unused)]
 pub struct Position {
     x: f32,
     y: f32,

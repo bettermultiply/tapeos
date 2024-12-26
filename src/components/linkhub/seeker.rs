@@ -7,7 +7,7 @@
 // 2. wifi
 // 3. internet
 
-use bluer::{Adapter, AdapterEvent, Address, Device, gatt::remote::Characteristic};
+use bluer::{AdapterEvent, Device, gatt::remote::Characteristic};
 use futures::{pin_mut, StreamExt};
 use std::{error::Error, time::Duration};
 use crate::base::resource::{BluetoothResource, Status, Position, RESOURCES};
@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::time;
 use tokio::time::sleep;
 
-
+#[allow(dead_code)]
 enum SeekMethod {
     Bluetooth,
     Wifi,
@@ -25,6 +25,8 @@ enum SeekMethod {
     // TODO: add more seek methods
 }
 
+#[allow(dead_code)]
+
 enum Platform {
     Linux,
     Windows,
@@ -33,7 +35,7 @@ enum Platform {
     IOS,
 }
 
-fn seek() -> Result<(), Box<dyn Error>> {
+pub fn seek() -> Result<(), Box<dyn Error>> {
     // TODO: we need to define seek method by configuration file.
     let seek_method = SeekMethod::Bluetooth;
     match seek_method {
@@ -58,7 +60,12 @@ fn seek_by_bluetooth() -> Result<(), Box<dyn Error>> {
             .build()
             .unwrap()
             .block_on(async {
-                seek_bluetooth_linux().await;
+                match seek_bluetooth_linux().await {
+                    Ok(_) => (),
+                    Err(err) => {
+                        println!("seek bluetooth failed: {}", &err);
+                    }
+                }
             });
             Ok(())
         }
@@ -164,12 +171,6 @@ async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result
     }
 
     Ok(Ok(None))
-}
-
-async fn connect_bluetooth_device(adapter: &Adapter, addr: Address) -> bluer::Result<()> {
-    let device = adapter.device(addr)?;
-    device.connect().await?;
-    Ok(())
 }
 
 // create new resource and store the bluetooth device properties into the resource pool

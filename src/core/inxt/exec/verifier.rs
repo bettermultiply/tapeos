@@ -5,27 +5,27 @@
 use crate::base::intent::Intent;
 
 pub fn verify_intent(intent: &Intent) -> bool {
-    // TODO: implement the logic to verify the intent
-    true
+    verify_dependency(intent) && verify_resource(intent) && verify_subintent(intent)
 }
 
 
-fn verify_dependency(intent: &str) -> bool {
+fn verify_dependency(intent: &Intent) -> bool {
     // TODO: implement the logic to verify the dependency of the intent
     true
 }
 
 
-fn verify_resource(intent: &str) -> bool {
+fn verify_resource(intent: &Intent) -> bool {
     // TODO: implement the logic to verify the resource of the intent
     true
 }
 
 
-fn verify_subintent(intent: &str) -> bool {
+fn verify_subintent(intent: &Intent) -> bool {
     // TODO: implement the logic to verify the subintent of the intent
     true
 }
+
 
 
 

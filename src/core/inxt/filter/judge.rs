@@ -11,15 +11,17 @@ pub fn intent_judge(intent: &Intent) -> bool {
 // should be used to judge  every intent.
 fn essential_judge(intent: &Intent) -> bool {
     // TODO: implement the logic to judge if the intent is essential
-    
+    println!("essential judge the intent: {}", intent.get_description());
     true
 }
 // this judge is conducted depends on intent's attributes.
 fn rule_judge(intent: &Intent) -> bool {
+    println!("rule judge the intent: {}", intent.get_description());
     // TODO: implement the logic to judge if the intent is allowed by the rule
     true
 }
 
 pub fn reject_intent(intent: &Intent) {
+    println!("reject the intent: {}", intent.get_description());
     // TODO: implement the logic to reject the intent
 }

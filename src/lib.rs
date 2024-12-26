@@ -1,4 +1,4 @@
-mod core {
+pub mod core {
     pub mod inxt {
         pub mod filter {
             pub mod judge;
@@ -20,21 +20,22 @@ mod core {
     }
 }
 
-mod components {
+pub mod components {
     pub mod controlhub {
+        pub mod adaptor;
         pub mod interpreter;
     }
     pub mod linkhub {
-        pub mod adaptor;
         pub mod seeker;
+        pub mod waiter;
     }
 }
 
-mod tools {
+pub mod tools {
     pub mod idgen;
 }
 
-mod base {
+pub mod base {
     pub mod resource;
     pub mod rule;
     pub mod intent;

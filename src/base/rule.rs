@@ -4,6 +4,7 @@ use std::time;
 use std::sync::LazyLock;
 use crate::tools::idgen::{generate_id, IdType};
 
+pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());
 struct Rule {
     id: i64,
     name: String,
@@ -80,5 +81,3 @@ impl RuleSet {
         self.rules.retain(|r: &Rule| r.id != id);
     }
 }
-
-pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());

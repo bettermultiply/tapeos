@@ -6,7 +6,7 @@ use crate::base::resource::Resource;
 // it is used for internal manipulation.S
 pub struct Intent<'a> {
     description: String,
-    available_resources: Vec<&'a Resource>,
+    available_resources: Vec<&'a dyn Resource>,
     // TODO: define the intent structure
 }
 
@@ -19,23 +19,23 @@ impl<'a> Intent<'a> {
         &self.description
     }
 
-    pub fn get_available_resources(&self) -> &Vec<&Resource> {
+    pub fn get_available_resources(&self) -> &Vec<&dyn Resource> {
         &self.available_resources
     }
 
-    pub fn set_available_resources(&mut self, available_resources: Vec<&'a Resource>) {
+    pub fn set_available_resources(&mut self, available_resources: Vec<&'a dyn Resource>) {
         self.available_resources = available_resources;
     }
 
-    pub fn add_available_resources(&mut self, resources: Vec<&'a Resource>) {
+    pub fn add_available_resources(&mut self, resources: Vec<&'a dyn Resource>) {
         self.available_resources.extend(resources.iter());
     }
 
-    pub fn remove_available_resource(&mut self, resource: &'a Resource) {
+    pub fn remove_available_resource(&mut self, resource: &'a dyn Resource) {
         self.available_resources.retain(|r| r.get_id() != resource.get_id());
     }
 
-    pub fn remove_available_resources(&mut self, resources: Vec<&'a Resource>) {
+    pub fn remove_available_resources(&mut self, resources: Vec<&'a dyn Resource>) {
         self.available_resources.retain(|r| !resources.iter().any(|r2| r2.get_id() == r.get_id()));
     }
 

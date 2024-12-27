@@ -111,7 +111,10 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
                             println!("    find tapeos {}", name);
                             done = true;
                         },
-                        Ok(None) => (),
+                        Ok(None) => {
+                            println!("    no tapeos {}", name);
+
+                        },
                         Err(err) => {
                             println!("    Device failed: {}", err);
                             let _ = adapter.remove_device(addr).await;

@@ -132,11 +132,11 @@ pub async fn waiter() -> bluer::Result<()> {
                 match device_event {
                     AdapterEvent::DeviceAdded(addr) => {
                         let device = adapter.device(addr)?;
-                        store_resource(device);
+                        store_resource(device).await?;
                     },
                     AdapterEvent::DeviceRemoved(addr) => {
                         let device = adapter.device(addr)?;
-                        remove_resource(device);
+                        remove_resource(device).await?;
                     },
                     _ => (),
                 }

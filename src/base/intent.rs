@@ -7,59 +7,92 @@ use crate::base::resource::Resource;
 pub struct Intent<'a> {
     description: String,
     complete: bool,
-    sub_intent: Vec<Intent<'a>>,
+    source: IntentSource,
+    sub_intent: Vec<SubIntent<'a>>,
+}
+
+#[derive(PartialEq)]
+pub enum IntentSource {
+    Resource,
+    System,
+    SubSystem,
+}
+
+pub struct SubIntent<'a> {
+    description: String,
+    complete: bool,
     available_resources: Vec<&'a dyn Resource>,
+    selected_resource: Option<&'a dyn Resource>,
 }
 
 impl<'a> Intent<'a> {
-    pub fn new(description: String) -> Self {
-        Self { description, complete: false, sub_intent: vec![], available_resources: vec![] }
+    pub fn new(description: String, source: IntentSource) -> Self {
+        Self { description, complete: false, source, sub_intent: vec![] }
+    }
+
+    pub fn iter_sub_intent(&mut self) -> impl Iterator<Item = &mut SubIntent<'a>> {
+        self.sub_intent.iter_mut()
     }
 
     pub fn get_description(&self) -> &str {
         &self.description
     }
 
-    pub fn get_available_resources(&self) -> &Vec<&dyn Resource> {
-        &self.available_resources
+    pub fn is_complete(&self) -> bool {
+        self.complete
     }
 
-    pub fn set_available_resources(&mut self, available_resources: Vec<&'a dyn Resource>) {
-        self.available_resources = available_resources;
+    pub fn complete(&mut self) {
+        self.complete = true;
     }
 
-    pub fn add_available_resources(&mut self, resources: Vec<&'a dyn Resource>) {
+    pub fn add_sub_intent(&mut self, sub_intent: Vec<SubIntent<'a>>) {
+        self.sub_intent.extend(sub_intent);
+    }
+
+    pub fn get_source(&self) -> &IntentSource {
+        &self.source
+    }
+}
+
+impl <'a>SubIntent<'a> {
+    pub fn new(description: String, available_resources: Vec<&'a dyn Resource>) -> Self {
+        Self { description, complete: false, available_resources, selected_resource: None }
+    }
+
+    pub fn iter_available_resources(&self) -> impl Iterator<Item = &&'a dyn Resource> {
+        self.available_resources.iter()
+    }
+
+    pub fn get_selected_resource(&self) -> Option<&'a dyn Resource> {
+        self.selected_resource
+    }
+
+    pub fn set_selected_resource(&mut self, resource: &'a dyn Resource) {
+        self.selected_resource = Some(resource);
+    }
+
+    pub fn get_description(&self) -> &str {
+        &self.description
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.complete
+    }
+
+    pub fn complete(&mut self) {
+        self.complete = true;
+    }
+
+    pub fn add(&mut self, resources: Vec<&'a dyn Resource>) {
         self.available_resources.extend(resources.iter());
     }
 
-    pub fn remove_available_resource(&mut self, resource: &'a dyn Resource) {
-        self.available_resources.retain(|r| r.get_id() != resource.get_id());
+    pub fn pop(&mut self) -> &'a dyn Resource {
+        self.available_resources.pop().unwrap()
     }
-
-    pub fn remove_available_resources(&mut self, resources: Vec<&'a dyn Resource>) {
-        self.available_resources.retain(|r| !resources.iter().any(|r2| r2.get_id() == r.get_id()));
-    }
-
-    pub fn clear_available_resources(&mut self) {
-        self.available_resources.clear();
+    
+    pub fn is_empty(&self) -> bool {
+        self.available_resources.is_empty()
     }
 }
-
-pub fn intent_extract(intent: &Intent) -> String {
-    // TODO: implement the logic to extract the intent
-    intent.description.clone()
-}
-
-// TODO: do we really need this?
-pub fn intent_serialize(intent: &Intent) -> String {
-    // TODO: implement the logic to serialize the intent
-    intent.description.clone()
-}
-
-pub fn intent_deserialize(intent: &Intent) -> String {
-    // TODO: implement the logic to deserialize the intent
-    intent.description.clone()
-}
-
-
-

@@ -906,6 +906,7 @@ name = "tapeos"
 version = "0.1.0"
 dependencies = [
  "bluer",
+ "chrono",
  "env_logger",
  "futures",
  "idgenerator",

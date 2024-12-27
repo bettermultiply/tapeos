@@ -5,7 +5,8 @@ use crate::base::intent::Intent;
 
 pub fn monitor(intent: &Intent) -> bool {
     // TODO: implement the logic to monitor the intent execution
-    true
+    
+    intent.is_complete()
 }
 
 fn provide_feedback(feedback: &str) -> bool {

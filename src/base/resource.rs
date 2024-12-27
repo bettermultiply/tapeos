@@ -61,6 +61,7 @@ pub(crate) struct BluetoothResource {
     interpreter: Option<Box<dyn Interpreter>>, 
 }
 
+#[allow(unused)]
 impl BluetoothResource {
     pub fn new(device: Device, props: Vec<DeviceProperty>, service: Option<Service>, char: Option<Characteristic>) -> Self {
         Self { 

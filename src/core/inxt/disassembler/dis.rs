@@ -1,19 +1,21 @@
 // in this file, we will implement the disassembler.
 
-use crate::base::{intent::Intent, resource::RESOURCES};
+use crate::base::intent::{Intent, SubIntent};
 
-pub fn disassemble_intent<'a>(intent: &'a Intent) -> Option<Vec<Intent<'a>>> {
-    let mut sub_intents: Vec<Intent<'a>> = Vec::new();
-
+pub fn disassembler<'a>(intent: &mut Intent<'a>) -> Option<()> {
+    #[allow(unused_mut)]
+    let mut sub_intents: Vec<SubIntent<'a>> = disassemble_intent(intent.get_description());
     // Logic to disassemble the intent based on resources
-    for resource in RESOURCES.lock().unwrap().iter() {
-        let sub_intent = format!("{} for {}", intent.get_description(), resource.get_id());
-        sub_intents.push(Intent::new(sub_intent));
+
+    if !sub_intents.is_empty() {
+        intent.add_sub_intent(sub_intents);
     }
 
-    if sub_intents.is_empty() {
-        return None;
-    }
+    Some(())
+}
 
-    Some(sub_intents)
+fn disassemble_intent<'a>(intent: &str) -> Vec<SubIntent<'a>> {
+    // TODO: use ai here to disassemble the intent.
+    // maybe we should design prompt here.
+    vec![]
 }

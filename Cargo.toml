@@ -12,3 +12,4 @@ env_logger = "0.11.6"
 lazy_static = "1.4.0"
 serde = { version = "1.0.200", features = ["derive"] }
 uuid = "1.5.0"
+chrono = "0.4.39"

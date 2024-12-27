@@ -1,11 +1,19 @@
 // in this file, we will store rules for judging the intent.
 
-use std::time;
+use std::time::{Duration, Instant};
 use std::sync::LazyLock;
 use crate::tools::idgen::{generate_id, IdType};
-
+use crate::base::intent::IntentSource;
+use chrono::Weekday;
 pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());
 
+// judge whether to accept the intent.
+pub enum RuleDetail {
+    Source(IntentSource), // based on the source of the intent.
+    Description(String), // based on the description of the intent. which actually we will use ai to judge intent.
+    Time(Duration), // based on the time to reject the intent.
+    Weekday(Weekday), // based on the weekday to reject the intent.
+}
 
 #[allow(unused)]
 pub struct Rule {
@@ -13,12 +21,14 @@ pub struct Rule {
     name: String,
     description: String,
     // we encourage that one Rule judge one feature of the intent.
-    rule: String, // TODO: we need more specific and controllable ways to describe and apply the rule.
-    valid_duration: time::Duration,
+    rule_detail: RuleDetail,
+    // rule: String, // TODO: we need more specific and controllable ways to describe and apply the rule.
+    valid_time: Duration,
+    created_time: Instant,
 }
 
 impl Rule {
-    pub fn new(name: String, description: String, rule: String, valid_duration: time::Duration) -> Self {
+    pub fn new(name: String, description: String, rule_detail: RuleDetail, valid_time: Duration) -> Self {
         let mut new_id: i64;
         loop {
             new_id = generate_id(IdType::Resource);
@@ -27,7 +37,7 @@ impl Rule {
                 break;
             }
         }
-        Self { id: new_id, name, description, rule, valid_duration }
+        Self { id: new_id, name, description, rule_detail, valid_time, created_time: Instant::now() }
     }
 
     pub fn get_id(&self) -> i64 {
@@ -42,12 +52,20 @@ impl Rule {
         &self.description
     }
 
-    pub fn get_rule(&self) -> &str {
-        &self.rule
+    pub fn get_rule_detail(&self) -> &RuleDetail {
+        &self.rule_detail
     }
 
-    pub fn get_valid_duration(&self) -> time::Duration {
-        self.valid_duration
+    pub fn get_valid_time(&self) -> Duration {
+        self.valid_time
+    }
+
+    pub fn get_created_time(&self) -> Instant {
+        self.created_time
+    }
+
+    pub fn is_expired(&self) -> bool {
+        self.created_time + self.valid_time <= Instant::now()
     }
 
     // we don't provide the function to change the rule directly, 
@@ -83,4 +101,12 @@ impl RuleSet {
     pub fn delete_rule(&mut self, id: i64) {
         self.rules.retain(|r: &Rule| r.id != id);
     }
+
+    pub fn expire_rules(&mut self) {
+        self.rules.retain(|r: &Rule| !r.is_expired() || r.id < 1000);
+    }
+}
+
+pub fn iter_rules() -> impl Iterator<Item = &'static Rule> {
+    RULES.rules.iter()
 }

@@ -7,7 +7,7 @@ pub fn disassemble_intent<'a>(intent: &'a Intent) -> Option<Vec<Intent<'a>>> {
 
     // Logic to disassemble the intent based on resources
     for resource in RESOURCES.lock().unwrap().iter() {
-        let sub_intent = format!("{} for {}", intent.get_description(), resource.get_name());
+        let sub_intent = format!("{} for {}", intent.get_description(), resource.get_id());
         sub_intents.push(Intent::new(sub_intent));
     }
 

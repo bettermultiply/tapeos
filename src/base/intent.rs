@@ -6,13 +6,14 @@ use crate::base::resource::Resource;
 // it is used for internal manipulation.S
 pub struct Intent<'a> {
     description: String,
+    complete: bool,
+    sub_intent: Vec<Intent<'a>>,
     available_resources: Vec<&'a dyn Resource>,
-    // TODO: define the intent structure
 }
 
 impl<'a> Intent<'a> {
     pub fn new(description: String) -> Self {
-        Self { description, available_resources: vec![] }
+        Self { description, complete: false, sub_intent: vec![], available_resources: vec![] }
     }
 
     pub fn get_description(&self) -> &str {

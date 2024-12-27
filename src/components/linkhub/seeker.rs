@@ -7,13 +7,17 @@
 // 2. wifi
 // 3. internet
 
-use bluer::{AdapterEvent, Device, gatt::remote::Characteristic};
+use bluer::{AdapterEvent, Device, gatt::remote::Characteristic, gatt::remote::Service};
 use futures::{pin_mut, StreamExt};
-use std::{error::Error, time::Duration};
-use crate::base::resource::{BluetoothResource, Status, Position, RESOURCES};
-use std::collections::HashMap;
-use std::time;
+use std::{error::Error, time::Duration, sync::Mutex};
+use crate::base::resource::{BluetoothResource, Resource};
 use tokio::time::sleep;
+use lazy_static::lazy_static;
+
+// TODO: make TAPE a single resource instead of a vector.
+lazy_static! {
+    pub static ref TAPE: Mutex<Vec<Box<dyn Resource>>> = Mutex::new(Vec::new());
+}
 
 #[allow(dead_code)]
 enum SeekMethod {
@@ -26,7 +30,6 @@ enum SeekMethod {
 }
 
 #[allow(dead_code)]
-
 enum Platform {
     Linux,
     Windows,
@@ -35,10 +38,17 @@ enum Platform {
     IOS,
 }
 
+const SEEK_METHOD: SeekMethod = SeekMethod::Bluetooth;
+const PLATFORM: Platform = Platform::Linux;
+
+// seek the higher level system periodically.
 pub fn seek() -> Result<(), Box<dyn Error>> {
-    // TODO: we need to define seek method by configuration file.
-    let seek_method = SeekMethod::Bluetooth;
-    match seek_method {
+    
+    if TAPE.lock().unwrap().len() > 0 {
+        return Err("Tape exists".into());
+    }
+
+    match SEEK_METHOD {
         SeekMethod::Bluetooth => seek_by_bluetooth(),
         SeekMethod::Wifi => seek_by_wifi(),
         SeekMethod::Internet => seek_by_internet(),
@@ -48,12 +58,9 @@ pub fn seek() -> Result<(), Box<dyn Error>> {
     }
 }
 
-// TODO: seek means that there is a waiter waiting for connection. Where should we put the waiter?
-
 // seek by bluetooth. And for different platform, we will implement different logic.
 fn seek_by_bluetooth() -> Result<(), Box<dyn Error>> {
-    let platform = Platform::Linux;
-    match platform {
+    match PLATFORM {
         Platform::Linux => {
             tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -77,29 +84,31 @@ fn seek_by_bluetooth() -> Result<(), Box<dyn Error>> {
 
 // seek by bluetooth on linux
 async fn seek_bluetooth_linux() -> bluer::Result<()> {
-
     env_logger::init();
 
     let session = bluer::Session::new().await?;
     let adapter = session.default_adapter().await?;
     adapter.set_powered(true).await?;
+    
     {
         println!(
             "Discovering on Bluetooth adapter {} with address {}", 
             adapter.name(), 
             adapter.address().await?
         );
-        let discover = adapter.discover_devices().await?;
-        pin_mut!(discover);
+        
+        let devices_events = adapter.discover_devices().await?;
+        pin_mut!(devices_events);
         let mut done = false;
-        while let Some(event) = discover.next().await {
-            match event {
+
+        while let Some(device_event) = devices_events.next().await {
+            match device_event {
                 AdapterEvent::DeviceAdded(addr) => {
-                    println!("Found device: {addr}");
                     let device = adapter.device(addr)?;
+                    let name = device.name().await?.unwrap_or_default();
                     match find_tape_characteristic(device).await? {
-                        Ok(Some(char)) => {
-                            println!("    find tapeos {:?}", char);
+                        Ok(Some(_)) => {
+                            println!("    find tapeos {}", name);
                             done = true;
                         },
                         Ok(None) => (),
@@ -109,9 +118,10 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
                         }
                     }
                 }
-                AdapterEvent::DeviceRemoved(addr) => {
-                    println!("Device removed: {addr}");
-                }
+                // AdapterEvent::DeviceRemoved(addr) => {
+                //     // TODO: Maybe we can detect if connection is lost here.
+                //     println!("Device removed: {addr}");
+                // }
                 _ => (),
             }
             if done {
@@ -127,13 +137,11 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
 // Tape-related constants and types
 const TAPE_SERVICE_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00001234_0000_1000_8000_00805f9b34fb); // Example UUID
 const TAPE_CHARACTERISTIC_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00005678_0000_1000_8000_00805f9b34fb); // Example UUID
+const RETRIES: u8 = 2;
 
 async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result<Option<Characteristic>>> {
-    let addr = device.address();
+    
     let uuids = device.uuids().await?.unwrap_or_default();
-    println!("Discovered device {} with service UUIDs {:?}", addr, &uuids);
-    let md = device.manufacturer_data().await?;
-    println!("    Manufacturer data: {:x?}", md);
 
     if uuids.contains(&TAPE_SERVICE_UUID) {
         println!("    Device provides tape service");
@@ -141,7 +149,7 @@ async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result
         sleep(Duration::from_secs(2)).await;
         if !device.is_connected().await? {
             println!("    Connecting...");
-            let mut retries = 2; // TODO: make it configurable
+            let mut retries = RETRIES; // TODO: make it configurable
             loop {
                 match device.connect().await {
                     Ok(()) => break,
@@ -152,17 +160,17 @@ async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result
                     Err(err) => return Err(err),
                 }
             }
-            println!("    Connected");
-        } else {
-            println!("    Already connected");
-        }
+        } 
+        println!("    Connected");
 
         for service in device.services().await? {
-            if TAPE_SERVICE_UUID == service.uuid().await? {
+            let uuid = service.uuid().await?;
+            if TAPE_SERVICE_UUID == uuid {
                 for cha in service.characteristics().await? {
-                    if TAPE_CHARACTERISTIC_UUID == cha.uuid().await? {
+                    let uuid = cha.uuid().await?;
+                    if TAPE_CHARACTERISTIC_UUID == uuid {
                         let c = cha.clone();
-                        store_bluetooth_device(device, cha).await?;
+                        store_bluetooth_tape(device, cha, service).await?;
                         return Ok(Ok(Some(c)));
                     }
                 }
@@ -174,28 +182,23 @@ async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result
 }
 
 // create new resource and store the bluetooth device properties into the resource pool
-async fn store_bluetooth_device(device: Device, char: Characteristic) -> bluer::Result<()> {
-    let resource = BluetoothResource::new(
-        device.name().await?.unwrap_or_default(), 
-        
-        Status::new(true, Position::new(0.0, 0.0, 0.0), time::Duration::from_secs(0), device.is_paired().await?, device.is_connected().await?, device.is_trusted().await?, device.is_blocked().await?),
-        "".to_string(), 
-        vec![], 
-        None, 
-        HashMap::new(), 
-        device.remote_address().await?, 
-        device.address_type().await?, 
-        device.uuids().await?.unwrap_or_default(), 
-        device.alias().await?, 
-        device.service_data().await?.unwrap_or_default(), 
-        device.class().await?.unwrap_or_default(), 
-        device.is_legacy_pairing().await?, 
-        device.rssi().await?.unwrap_or_default(), 
-        device.is_services_resolved().await?,
-        device, 
-        char,
+async fn store_bluetooth_tape(device: Device, cha: Characteristic, service: Service) -> bluer::Result<()> {
+    let props = device.all_properties().await?;
+    let mut tape = BluetoothResource::new(
+        device,
+        props,
+        Some(service),
+        Some(cha),
     );
-    RESOURCES.lock().unwrap().push(Box::new(resource));
+    complete_tape(&mut tape).await?;
+    TAPE.lock().unwrap().push(Box::new(tape));
+    Ok(())
+}
+
+// complete the tape by the resource pool
+async fn complete_tape(tape: &mut dyn Resource) -> bluer::Result<()> {
+    tape.set_description("tape".to_string());
+    // TODO: we need to communicate with the higher level system to get the tape information
     Ok(())
 }
 

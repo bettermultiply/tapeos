@@ -2,14 +2,14 @@
 // and provide the interface for other components to access and update the 
 // information.
 
-use bluer::{DeviceProperty, gatt::remote::Service};
 
 use crate::components::controlhub::interpreter::Interpreter;
 use crate::tools::idgen::{generate_id, IdType};
 use std::time::Duration;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
-use bluer::{Device, gatt::remote::Characteristic};
+use bluer::{Device, gatt::remote::Characteristic, DeviceProperty, gatt::remote::Service};
+use crate::base::intent::{Intent, SubIntent};
 
 lazy_static! {
     pub static ref RESOURCES: Mutex<Vec<Box<dyn Resource>>> = Mutex::new(Vec::new());
@@ -33,6 +33,17 @@ pub trait Resource: Send + Sync {
     fn set_command(&mut self, command: Vec<String>);
     fn set_interpreter(&mut self, interpreter: Option<Box<dyn Interpreter>>);
     fn set_description(&mut self, description: String);
+
+    // send intent to the resource. tape->resource(include tape).
+    fn send_intent(&self, intent: &SubIntent);
+    // reject intent to the source. tape->source.
+    fn reject_intent(&self, intent: &Intent);
+    // send response to the source. tape->source.
+    fn send_response(&self, response: &Intent);
+    // query the resource's status.
+    fn query_status(&self);
+    // tell the resource to execute the intent.
+    fn execute_intent(&self, intent: &SubIntent);
 }
 
 #[allow(unused)]
@@ -138,6 +149,26 @@ impl Resource for BluetoothResource {
 
     fn set_description(&mut self, description: String) {
         self.description = description;
+    }
+
+    fn send_intent(&self, intent: &SubIntent) {
+        // TODO: implement the logic to send intent to the resource.
+    }
+
+    fn reject_intent(&self, intent: &Intent) {
+        // TODO: implement the logic to reject intent to the source.
+    }
+
+    fn send_response(&self, response: &Intent) {
+        // TODO: implement the logic to send response to the source.
+    }
+
+    fn query_status(&self) {
+        // TODO: implement the logic to query the resource's status.
+    }
+
+    fn execute_intent(&self, intent: &SubIntent) {
+        // TODO: implement the logic to execute the intent.
     }
 }
 

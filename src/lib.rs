@@ -16,7 +16,7 @@ pub mod core {
         pub mod intent;
     }
     pub mod comm {
-
+        pub mod messager;
     }
 }
 

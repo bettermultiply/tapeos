@@ -7,15 +7,8 @@ use crate::base::resource::Resource;
 pub struct Intent<'a> {
     description: String,
     complete: bool,
-    source: IntentSource,
+    source: &'a dyn Resource,
     sub_intent: Vec<SubIntent<'a>>,
-}
-
-#[derive(PartialEq)]
-pub enum IntentSource {
-    Resource,
-    System,
-    SubSystem,
 }
 
 pub struct SubIntent<'a> {
@@ -26,7 +19,7 @@ pub struct SubIntent<'a> {
 }
 
 impl<'a> Intent<'a> {
-    pub fn new(description: String, source: IntentSource) -> Self {
+    pub fn new(description: String, source: &'a dyn Resource) -> Self {
         Self { description, complete: false, source, sub_intent: vec![] }
     }
 
@@ -50,8 +43,8 @@ impl<'a> Intent<'a> {
         self.sub_intent.extend(sub_intent);
     }
 
-    pub fn get_source(&self) -> &IntentSource {
-        &self.source
+    pub fn get_source(&self) -> &'a dyn Resource {
+        self.source
     }
 }
 

@@ -1,34 +1,37 @@
 // in this file, we will store rules for judging the intent.
 
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use std::sync::LazyLock;
 use crate::tools::idgen::{generate_id, IdType};
-use crate::base::intent::IntentSource;
 use chrono::Weekday;
+use crate::base::resource::Resource;
 pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());
 
 // judge whether to accept the intent.
-pub enum RuleDetail {
-    Source(IntentSource), // based on the source of the intent.
+// actually rule means not to dp.
+pub enum RuleDetail<'a> {
+    Essential,
+    Source(&'a dyn Resource), // based on the source of the intent.
     Description(String), // based on the description of the intent. which actually we will use ai to judge intent.
     Time(Duration), // based on the time to reject the intent.
     Weekday(Weekday), // based on the weekday to reject the intent.
 }
 
 #[allow(unused)]
-pub struct Rule {
+pub struct Rule<'a> {
     id: i64,
     name: String,
     description: String,
     // we encourage that one Rule judge one feature of the intent.
-    rule_detail: RuleDetail,
+    rule_detail: RuleDetail<'a>,
     // rule: String, // TODO: we need more specific and controllable ways to describe and apply the rule.
     valid_time: Duration,
     created_time: Instant,
 }
 
-impl Rule {
-    pub fn new(name: String, description: String, rule_detail: RuleDetail, valid_time: Duration) -> Self {
+impl<'a> Rule<'a> {
+    pub fn new(name: String, description: String, rule_detail: RuleDetail<'a>, valid_time: Duration) -> Self {
         let mut new_id: i64;
         loop {
             new_id = generate_id(IdType::Resource);
@@ -76,17 +79,17 @@ impl Rule {
     // }
 }
 
-pub struct RuleSet {
-    rules: Vec<Rule>,
+pub struct RuleSet<'a> {
+    rules: Vec<Rule<'a>>,
 }
 
-impl RuleSet {
+impl<'a> RuleSet<'a> {
     
     pub fn new() -> Self {
         Self { rules: vec![] }
     }
     
-    pub fn add_rule(&mut self, rule: Rule) {
+    pub fn add_rule(&mut self, rule: Rule<'a>) {
         self.rules.push(rule);
     }
     
@@ -107,6 +110,31 @@ impl RuleSet {
     }
 }
 
-pub fn iter_rules() -> impl Iterator<Item = &'static Rule> {
+pub fn iter_rules<'a>() -> impl Iterator<Item = &'a Rule<'a>> {
     RULES.rules.iter()
 }
+
+pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMap::from([
+    (
+        "risk", 
+        Rule {
+            id: 0,
+            name: "risk".to_string(), 
+            description: "risk".to_string(), 
+            rule_detail: RuleDetail::Essential, 
+            valid_time: Duration::from_secs(0),
+            created_time: Instant::now(),
+        },
+    ),
+    (
+        "privilege", 
+        Rule {
+            id: 1,
+            name: "privilege".to_string(), 
+            description: "privilege".to_string(), 
+            rule_detail: RuleDetail::Essential, 
+            valid_time: Duration::from_secs(0),
+            created_time: Instant::now(),
+        },
+    )
+]));

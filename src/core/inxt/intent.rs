@@ -29,9 +29,7 @@ pub fn execute_intent(mut intent: Intent) {
 
     monitor(&intent);
 
+    // complete should report completion to tape monitor.
     intent.complete();
 
 }
-
-
-

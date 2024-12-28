@@ -4,12 +4,12 @@
 
 use crate::base::intent::Intent;
 
-pub fn verify_intent(intent: &Intent) -> bool {
-    verify_dependency(intent) && verify_resource(intent) && verify_subintent(intent)
+pub fn schedule_intent(intent: &Intent) -> bool {
+    schedule_dependency(intent) && verify_resource(intent) && verify_subintent(intent)
 }
 
 
-fn verify_dependency(intent: &Intent) -> bool {
+fn schedule_dependency(intent: &Intent) -> bool {
     // TODO: implement the logic to verify the dependency of the intent
     true
 }

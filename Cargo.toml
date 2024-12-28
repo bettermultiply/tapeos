@@ -13,3 +13,4 @@ lazy_static = "1.4.0"
 serde = { version = "1.0.200", features = ["derive"] }
 uuid = "1.5.0"
 chrono = "0.4.39"
+regex = "1.10.0"

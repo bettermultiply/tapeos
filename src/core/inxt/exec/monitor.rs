@@ -9,8 +9,3 @@ pub fn monitor(intent: &Intent) -> bool {
     intent.is_complete()
 }
 
-fn provide_feedback(feedback: &str) -> bool {
-    // TODO: implement the logic to provide the feedback to the higher level system
-    true
-}
-

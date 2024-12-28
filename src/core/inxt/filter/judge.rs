@@ -4,7 +4,7 @@
 use crate::base::intent::Intent;
 use crate::base::rule::{Rule, RuleDetail, STATIC_RULES, iter_rules};
 use chrono::{Local, Datelike};
-use crate::base::resource::Resource;
+
 // judge if the intent can be processed by the tapeos.
 pub fn intent_judge(intent: &Intent) -> bool {
     println!("intent judge the intent: {}", intent.get_description());
@@ -47,13 +47,13 @@ fn user_judge(intent: &Intent) -> bool {
 fn judge(intent: &Intent, rule: &Rule) -> bool {
     match rule.get_rule_detail() {
         RuleDetail::Source(intent_source) => intent.get_intent_source() != intent_source,
-        RuleDetail::Description(description) => intent.get_description() != description,
+        RuleDetail::Description(description) => intent.get_description() != description, // TODO: we should use ai to judge the description.
         RuleDetail::Time(_) => rule.is_expired(),
         RuleDetail::Weekday(weekday) => {
             let now = Local::now().date_naive().weekday();
             now != *weekday
         },
-        RuleDetail::Essential => true,
+        RuleDetail::Essential => true, // TODO: we should use ai to judge the essential.
     }
 }
 
@@ -61,9 +61,8 @@ fn judge(intent: &Intent, rule: &Rule) -> bool {
 pub fn reject_intent(intent: &Intent) {
     println!("reject the intent: {}", intent.get_description());
 
-    // TODO: implement the logic to reject the intent
     let source = intent.get_source();
-    (source as &dyn Resource).reject_intent(intent);
+    source.reject_intent(intent);
     // TODO: Maybe we should tell the source why the intent is rejected.
 
 }

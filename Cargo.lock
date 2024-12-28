@@ -911,6 +911,7 @@ dependencies = [
  "futures",
  "idgenerator",
  "lazy_static",
+ "regex",
  "serde",
  "tokio",
  "uuid",

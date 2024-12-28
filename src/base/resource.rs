@@ -4,16 +4,17 @@
 
 
 use crate::components::controlhub::interpreter::Interpreter;
-use crate::tools::idgen::{generate_id, IdType};
 use std::time::Duration;
 use std::sync::Mutex;
+use bluer::Address;
 use lazy_static::lazy_static;
 use bluer::{Device, gatt::remote::Characteristic, DeviceProperty, gatt::remote::Service};
 use crate::base::intent::{Intent, SubIntent};
-
 lazy_static! {
-    pub static ref RESOURCES: Mutex<Vec<Box<dyn Resource>>> = Mutex::new(Vec::new());
+    pub static ref RESOURCES: Mutex<Vec<Box<ResourceType>>> = Mutex::new(Vec::new());
 }
+
+pub type ResourceType = BluetoothResource;
 
 // resource is a physical or virtual device(including human and software), 
 // which can be used to execute intents. However, it may not be able to 
@@ -22,7 +23,6 @@ lazy_static! {
 // process intents, which means it do not need an interpreter to interpret 
 // the intent.
 pub trait Resource: Send + Sync {
-    fn get_id(&self) -> i64;
     fn get_type_name(&self) -> &str;
     fn get_status(&self) -> &Status;
     fn get_description(&self) -> &str;
@@ -47,9 +47,9 @@ pub trait Resource: Send + Sync {
 }
 
 #[allow(unused)]
-pub(crate) struct BluetoothResource {
+pub struct BluetoothResource {
     // id is a unique identifier for the resource, can't be changed.
-    id: i64,
+    address: Address,
     // different from device name, type name shows the kind of the resource.
     type_name: String,
     device: Device,
@@ -76,7 +76,7 @@ pub(crate) struct BluetoothResource {
 impl BluetoothResource {
     pub fn new(device: Device, props: Vec<DeviceProperty>, service: Option<Service>, char: Option<Characteristic>) -> Self {
         Self { 
-            id: generate_id(IdType::Resource), 
+            address: device.address(),
             type_name: "bluetooth".to_string(), 
             device, props, service, char, 
             status: Status {
@@ -88,6 +88,10 @@ impl BluetoothResource {
             command: Vec::new(), 
             interpreter: None 
         }
+    }
+
+    pub fn compare_address(&self, address: Address) -> bool {
+        self.address == address
     }
 
     pub fn get_props(&self) -> &Vec<DeviceProperty> {
@@ -102,6 +106,10 @@ impl BluetoothResource {
         &self.device
     }
 
+    pub async fn get_address(&self) -> Address {
+        self.device.address()
+    }
+
     pub fn get_char(&self) -> &Option<Characteristic> {
         &self.char
     }
@@ -111,10 +119,6 @@ impl BluetoothResource {
 
 #[allow(unused)]
 impl Resource for BluetoothResource {
-    fn get_id(&self) -> i64 {
-        self.id
-    }
-
     fn get_type_name(&self) -> &str {
         &self.type_name
     }

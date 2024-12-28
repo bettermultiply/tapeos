@@ -23,10 +23,17 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     time::{interval, sleep},
 };
-use crate::base::resource::RESOURCES;
-use crate::base::resource::BluetoothResource;
+use crate::base::resource::{ResourceType, BluetoothResource};
+use lazy_static::lazy_static;
+use std::sync::Mutex;
 
-async fn store_resource(device: Device) -> bluer::Result<()> {
+
+// TODO: make TAPE a single resource instead of a vector.
+lazy_static! {
+    pub static ref TAPE: Mutex<Vec<Box<ResourceType>>> = Mutex::new(Vec::new());
+}
+
+async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
     let props = device.all_properties().await?;
     for service in device.services().await? {
         let uuid = service.uuid().await?;
@@ -40,7 +47,7 @@ async fn store_resource(device: Device) -> bluer::Result<()> {
                         Some(service),
                         Some(cha),
                     );
-                    RESOURCES.lock().unwrap().push(Box::new(resource));
+                    TAPE.lock().unwrap().push(Box::new(resource));
                     return Ok(());
                 }
             }
@@ -52,12 +59,9 @@ async fn store_resource(device: Device) -> bluer::Result<()> {
 async fn remove_resource(device: Device) -> bluer::Result<()> {
     // TODO: remove the resource from the RESOURCES.
     println!("device removed uuid: {:?}", device.uuids().await?);
-    for (i, resource) in RESOURCES.lock().unwrap().iter_mut().enumerate() {
-        if resource.get_id() == 0 {
-            RESOURCES.lock().unwrap().remove(i);
-            return Ok(());
-        }
-    }
+    TAPE.lock().unwrap().retain(|resource| !resource.compare_address(device.address()));
+    
+    println!("Device removed: {:?}", device.address());
     Ok(())
 }
 
@@ -132,7 +136,11 @@ pub async fn waiter() -> bluer::Result<()> {
                 match device_event {
                     AdapterEvent::DeviceAdded(addr) => {
                         let device = adapter.device(addr)?;
-                        store_resource(device).await?;
+                        store_bluetooth_tape(device).await?;
+                            
+                        if TAPE.lock().unwrap().len() > 0 {
+                            return Ok(());
+                        }
                     },
                     AdapterEvent::DeviceRemoved(addr) => {
                         let device = adapter.device(addr)?;

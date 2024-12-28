@@ -4,7 +4,7 @@ use crate::core::inxt::intent::monitor::monitor;
 use crate::base::intent::Intent;
 use super::exec::monitor;
 use super::router::router::router;
-use super::exec::verifier::verify_intent;
+use super::exec::schedule::schedule_intent;
 use super::filter::judge::{reject_intent, intent_judge};
 use super::disassembler::dis::disassembler;
 
@@ -25,7 +25,7 @@ pub fn execute_intent(mut intent: Intent) {
 
     router(&mut intent);
 
-    verify_intent(&intent);
+    schedule_intent(&intent);
 
     monitor(&intent);
 

@@ -5,33 +5,32 @@ use std::time::{Duration, Instant};
 use std::sync::LazyLock;
 use crate::tools::idgen::{generate_id, IdType};
 use chrono::Weekday;
-use crate::base::resource::Resource;
+use crate::base::intent::IntentSource;
 pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());
 
 // judge whether to accept the intent.
-// actually rule means not to dp.
-pub enum RuleDetail<'a> {
+// actually rule means not to do something.
+pub enum RuleDetail {
     Essential,
-    Source(&'a dyn Resource), // based on the source of the intent.
+    Source(IntentSource), // based on the source of the intent.
     Description(String), // based on the description of the intent. which actually we will use ai to judge intent.
     Time(Duration), // based on the time to reject the intent.
     Weekday(Weekday), // based on the weekday to reject the intent.
 }
 
-#[allow(unused)]
-pub struct Rule<'a> {
+pub struct Rule {
     id: i64,
     name: String,
     description: String,
     // we encourage that one Rule judge one feature of the intent.
-    rule_detail: RuleDetail<'a>,
+    rule_detail: RuleDetail,
     // rule: String, // TODO: we need more specific and controllable ways to describe and apply the rule.
     valid_time: Duration,
     created_time: Instant,
 }
 
-impl<'a> Rule<'a> {
-    pub fn new(name: String, description: String, rule_detail: RuleDetail<'a>, valid_time: Duration) -> Self {
+impl Rule {
+    pub fn new(name: String, description: String, rule_detail: RuleDetail, valid_time: Duration) -> Self {
         let mut new_id: i64;
         loop {
             new_id = generate_id(IdType::Resource);
@@ -79,17 +78,17 @@ impl<'a> Rule<'a> {
     // }
 }
 
-pub struct RuleSet<'a> {
-    rules: Vec<Rule<'a>>,
+pub struct RuleSet {
+    rules: Vec<Rule>,
 }
 
-impl<'a> RuleSet<'a> {
+impl RuleSet {
     
     pub fn new() -> Self {
         Self { rules: vec![] }
     }
     
-    pub fn add_rule(&mut self, rule: Rule<'a>) {
+    pub fn add_rule(&mut self, rule: Rule) {
         self.rules.push(rule);
     }
     
@@ -110,7 +109,7 @@ impl<'a> RuleSet<'a> {
     }
 }
 
-pub fn iter_rules<'a>() -> impl Iterator<Item = &'a Rule<'a>> {
+pub fn iter_rules() -> impl Iterator<Item = &'static Rule> {
     RULES.rules.iter()
 }
 

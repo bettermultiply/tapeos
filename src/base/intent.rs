@@ -7,8 +7,16 @@ use crate::base::resource::Resource;
 pub struct Intent<'a> {
     description: String,
     complete: bool,
+    intent_source: IntentSource,
     source: &'a dyn Resource,
     sub_intent: Vec<SubIntent<'a>>,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum IntentSource {
+    Resource,
+    Subsystem,
+    Tape
 }
 
 pub struct SubIntent<'a> {
@@ -19,8 +27,8 @@ pub struct SubIntent<'a> {
 }
 
 impl<'a> Intent<'a> {
-    pub fn new(description: String, source: &'a dyn Resource) -> Self {
-        Self { description, complete: false, source, sub_intent: vec![] }
+    pub fn new(description: String, intent_source: IntentSource, source: &'a dyn Resource) -> Self {
+        Self { description, intent_source, complete: false, source, sub_intent: vec![] }
     }
 
     pub fn iter_sub_intent(&mut self) -> impl Iterator<Item = &mut SubIntent<'a>> {
@@ -29,6 +37,10 @@ impl<'a> Intent<'a> {
 
     pub fn get_description(&self) -> &str {
         &self.description
+    }
+
+    pub fn get_intent_source(&self) -> &IntentSource {
+        &self.intent_source
     }
 
     pub fn is_complete(&self) -> bool {

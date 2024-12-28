@@ -46,7 +46,7 @@ fn user_judge(intent: &Intent) -> bool {
 // judge the intent by user defined rule.
 fn judge(intent: &Intent, rule: &Rule) -> bool {
     match rule.get_rule_detail() {
-        RuleDetail::Source(source) => intent.get_source().as_ref() != source,
+        RuleDetail::Source(intent_source) => intent.get_intent_source() != intent_source,
         RuleDetail::Description(description) => intent.get_description() != description,
         RuleDetail::Time(_) => rule.is_expired(),
         RuleDetail::Weekday(weekday) => {

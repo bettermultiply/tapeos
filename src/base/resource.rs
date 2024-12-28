@@ -3,8 +3,7 @@
 // information.
 
 
-use crate::components::controlhub::interpreter::Interpreter;
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 use std::sync::Mutex;
 use bluer::Address;
 use lazy_static::lazy_static;
@@ -24,14 +23,14 @@ pub type ResourceType = BluetoothResource;
 // the intent.
 pub trait Resource: Send + Sync {
     fn get_type_name(&self) -> &str;
-    fn get_status(&self) -> &Status;
+    fn get_status(&mut self) -> &mut Status;
     fn get_description(&self) -> &str;
     fn get_command(&self) -> &Vec<String>;
 
     fn set_type_name(&mut self, type_name: String);
     fn set_status(&mut self, status: Status);
     fn set_command(&mut self, command: Vec<String>);
-    fn set_interpreter(&mut self, interpreter: Option<Box<dyn Interpreter>>);
+    fn set_interpreter(&mut self, interpreter: PathBuf);
     fn set_description(&mut self, description: String);
 
     // send intent to the resource. tape->resource(include tape).
@@ -69,7 +68,7 @@ pub struct BluetoothResource {
     command: Vec<String>,
     // interpreter is a trait that can be implemented by different 
     // interpreters. For subsystems, this field is set to None.
-    interpreter: Option<Box<dyn Interpreter>>, 
+    interpreter: PathBuf, 
 }
 
 #[allow(unused)]
@@ -86,7 +85,7 @@ impl BluetoothResource {
             }, 
             description: "".to_string(), 
             command: Vec::new(), 
-            interpreter: None 
+            interpreter: PathBuf::new() 
         }
     }
 
@@ -123,8 +122,8 @@ impl Resource for BluetoothResource {
         &self.type_name
     }
 
-    fn get_status(&self) -> &Status {
-        &self.status
+    fn get_status(&mut self) -> &mut Status {
+        &mut self.status
     }
 
     fn get_description(&self) -> &str {
@@ -147,7 +146,7 @@ impl Resource for BluetoothResource {
         self.command = command;
     }
 
-    fn set_interpreter(&mut self, interpreter: Option<Box<dyn Interpreter>>) {
+    fn set_interpreter(&mut self, interpreter: PathBuf) {
         self.interpreter = interpreter;
     }
 
@@ -200,6 +199,18 @@ impl Status {
     fn get_position(&self) -> &Position {
         &self.position
     }
+
+    pub fn set_aviliability(&mut self, aviliability: bool) {
+        self.aviliability = aviliability;
+    }
+
+    pub fn set_position(&mut self, position: Position) {
+        self.position = position;
+    }
+
+    pub fn set_busy_time(&mut self, busy_time: Duration) {
+        self.busy_time = busy_time;
+    }
 }
 
 // position is a common field for all resources.
@@ -215,5 +226,9 @@ pub struct Position {
 impl Position {
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
+    }
+
+    pub fn new_from_vec(position: Vec<f32>) -> Self {
+        Self { x: position[0], y: position[1], z: position[2] }
     }
 }

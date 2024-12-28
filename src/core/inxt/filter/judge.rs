@@ -3,6 +3,9 @@
 
 use crate::base::intent::Intent;
 use crate::base::rule::{Rule, RuleDetail, STATIC_RULES, iter_rules};
+use crate::base::intent::IntentSource;
+use crate::components::linkhub::waiter::TAPE;
+use crate::base::resource::Resource;
 use chrono::{Local, Datelike};
 
 // judge if the intent can be processed by the tapeos.
@@ -19,6 +22,16 @@ fn essential_judge(intent: &Intent) -> bool {
     // essential rules will never be expired.
     // other than changing the code, user can't not change the rules.
     risk_judge(intent) && privilege_judge(intent) // && ...
+}
+
+// judge if the intent is to reject.
+pub fn reject_judge(intent: &Intent) -> bool {
+    if judge(intent, &STATIC_RULES["reject"]) {
+        // TODO: do more things here.
+        println!("intent: {} is rejected", intent.get_description());
+        return false;
+    }
+    true
 }
 
 // prevent the intent from risk users and the system.
@@ -60,9 +73,17 @@ fn judge(intent: &Intent, rule: &Rule) -> bool {
 // sending intnet back to source.
 pub fn reject_intent(intent: &Intent) {
     println!("reject the intent: {}", intent.get_description());
-
-    let source = intent.get_source();
-    source.reject_intent(intent);
+    match intent.get_intent_source() {
+        IntentSource::Tape => {
+            let tape = TAPE.lock().unwrap();
+            let source = tape.first().unwrap();
+            source.reject_intent(intent);
+        },
+        _ => {
+            let source = intent.get_source();
+            source.reject_intent(intent);
+        },
+    }
     // TODO: Maybe we should tell the source why the intent is rejected.
 
 }

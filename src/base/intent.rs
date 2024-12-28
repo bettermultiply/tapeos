@@ -1,15 +1,16 @@
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
+use crate::base::resource::ResourceType;
 use crate::base::resource::Resource;
-
+use bluer::Address;
 // the intent struct is not used for sending between outside and inside the system.
 // it is used for internal manipulation.S
 pub struct Intent<'a> {
     description: String,
     complete: bool,
     intent_source: IntentSource,
-    source: &'a dyn Resource,
-    sub_intent: Vec<SubIntent<'a>>,
+    source: Option<&'a dyn Resource>,
+    sub_intent: Vec<SubIntent>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -19,19 +20,19 @@ pub enum IntentSource {
     Tape
 }
 
-pub struct SubIntent<'a> {
+pub struct SubIntent {
     description: String,
     complete: bool,
-    available_resources: Vec<&'a dyn Resource>,
-    selected_resource: Option<&'a dyn Resource>,
+    available_resources: Vec<ResourceType>,
+    selected_resource: Option<ResourceType>,
 }
 
 impl<'a> Intent<'a> {
-    pub fn new(description: String, intent_source: IntentSource, source: &'a dyn Resource) -> Self {
-        Self { description, intent_source, complete: false, source, sub_intent: vec![] }
+    pub fn new(description: String, intent_source: IntentSource, source: Option<&'a dyn Resource>) -> Self {
+        Self { description, intent_source, complete: false, source: source, sub_intent: vec![] }
     }
 
-    pub fn iter_sub_intent(&mut self) -> impl Iterator<Item = &mut SubIntent<'a>> {
+    pub fn iter_sub_intent(&mut self) -> impl Iterator<Item = &mut SubIntent> {
         self.sub_intent.iter_mut()
     }
 
@@ -51,30 +52,39 @@ impl<'a> Intent<'a> {
         self.complete = true;
     }
 
-    pub fn add_sub_intent(&mut self, sub_intent: Vec<SubIntent<'a>>) {
+    pub fn add_sub_intent(&mut self, sub_intent: Vec<SubIntent>) {
         self.sub_intent.extend(sub_intent);
     }
 
     pub fn get_source(&self) -> &'a dyn Resource {
-        self.source
+        self.source.unwrap()
     }
 }
 
-impl <'a>SubIntent<'a> {
-    pub fn new(description: String, available_resources: Vec<&'a dyn Resource>) -> Self {
+impl SubIntent {
+    pub fn new(description: String, available_resources: Vec<ResourceType>) -> Self {
         Self { description, complete: false, available_resources, selected_resource: None }
     }
 
-    pub fn iter_available_resources(&self) -> impl Iterator<Item = &&'a dyn Resource> {
+    pub fn iter_available_resources(&self) -> impl Iterator<Item = &ResourceType> {
         self.available_resources.iter()
     }
 
-    pub fn get_selected_resource(&self) -> Option<&'a dyn Resource> {
-        self.selected_resource
+    pub fn remove_resource(&mut self, address: Address) {
+        self.available_resources.retain(|r| r.compare_address(address));
     }
 
-    pub fn set_selected_resource(&mut self, resource: &'a dyn Resource) {
-        self.selected_resource = Some(resource);
+    pub fn get_selected_resource(&self) -> Option<&ResourceType> {
+        self.selected_resource.as_ref()
+    }
+
+    pub fn set_selected_resource(&mut self, address: Address) {
+        for (index, r) in self.available_resources.iter().enumerate() {
+            if r.compare_address(address) {
+                self.selected_resource = Some(self.available_resources.remove(index));
+                break;
+            }
+        }
     }
 
     pub fn get_description(&self) -> &str {
@@ -89,11 +99,11 @@ impl <'a>SubIntent<'a> {
         self.complete = true;
     }
 
-    pub fn add(&mut self, resources: Vec<&'a dyn Resource>) {
-        self.available_resources.extend(resources.iter());
+    pub fn add(&mut self, resources: Vec<ResourceType>) {
+        self.available_resources.extend(resources);
     }
 
-    pub fn pop(&mut self) -> &'a dyn Resource {
+    pub fn pop(&mut self) -> ResourceType {
         self.available_resources.pop().unwrap()
     }
     

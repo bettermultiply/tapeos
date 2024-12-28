@@ -135,5 +135,16 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
-    )
+    ),
+    (
+        "reject", 
+        Rule {
+            id: 2,
+            name: "reject".to_string(), 
+            description: "reject".to_string(), 
+            rule_detail: RuleDetail::Essential, 
+            valid_time: Duration::from_secs(0),
+            created_time: Instant::now(),
+        },
+    ),
 ]));

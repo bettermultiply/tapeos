@@ -23,7 +23,6 @@ pub mod core {
 pub mod components {
     pub mod controlhub {
         pub mod adaptor;
-        pub mod interpreter;
     }
     pub mod linkhub {
         pub mod seeker;

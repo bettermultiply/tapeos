@@ -9,6 +9,10 @@ use crate::components::linkhub::seeker::{Platform, PLATFORM};
 use crate::base::intent::Intent;
 use crate::tools::llmq;
 use std::collections::HashMap;
+use crate::base::intent::IntentSource;
+use crate::base::resource::Resource;
+use std::path::PathBuf;
+use crate::base::resource::Position;
 
 // seek by bluetooth. And for different platform, we will implement different logic.
 pub fn seek() -> Result<(), Box<dyn Error>> {
@@ -151,39 +155,80 @@ async fn store_resource(device: Device, cha: Characteristic, service: Service) -
 
 // complete the resource by the resource pool
 async fn complete_resource(blue_resource: &mut BluetoothResource) -> bluer::Result<()> {
-    let resource = &blue_resource;
-    // TODO: we need to communicate with the higher level system to get the tape information
-
+    query_status(blue_resource).await?;
+    let response = receive_response(blue_resource).await?;
+    let resource: &mut dyn Resource = blue_resource;
+    let status = resource.get_status();
+    for status_pair in response.get("status").unwrap().split(';') {
+        let status_name = status_pair.split(':').next().unwrap();
+        let status_value = status_pair.split(':').last().unwrap();
+        match status_name {
+            "availability" => status.set_aviliability(status_value.parse::<bool>().unwrap()),
+            "Position" => status.set_position(Position::new_from_vec(status_value.to_owned().split(':').map(|s| s.to_string().parse::<f32>().unwrap()).collect())),
+            "busy_time" => status.set_busy_time(Duration::from_secs(status_value.parse::<u64>().unwrap())),
+            _ => (),
+        }
+    }
+    resource.set_command(response.get("command").unwrap().to_owned().split(':').map(|s| s.to_string()).collect());
+    resource.set_description(response.get("description").unwrap().to_owned());
+    let path = response.get("interpreter").unwrap().to_owned();
+    resource.set_interpreter(PathBuf::from(path));
     Ok(())
 }
 
-pub async fn send_intent<'a>(blue_resource: &BluetoothResource, intent: &Intent<'a>) -> bluer::Result<()> {
+pub async fn query_status(blue_resource: &BluetoothResource) -> bluer::Result<()> {
+    send_intent(blue_resource, "query for status; query for command; query for description; query for interpreter;").await?;
+    Ok(())
+}
+
+pub async fn send_intent<'a>(blue_resource: &BluetoothResource, intent_description: &str) -> bluer::Result<()> {
     // TODO: implement the logic to send the intent to the resource
     // let resource: &dyn Resource = blue_resource.clone();
     let char = blue_resource.get_char().as_ref().unwrap();
-    let data: Vec<u8> = intent.get_description().as_bytes().to_vec();
+    let data: Vec<u8> = intent_description.as_bytes().to_vec();
     char.write(&data).await?;
     sleep(Duration::from_secs(1)).await;
 
     Ok(())
 }
 
-pub async fn receive_intent(blue_resource: &BluetoothResource) -> bluer::Result<()> {
+pub async fn receive_intent(blue_resource: &BluetoothResource) -> bluer::Result<Intent> {
     let char = blue_resource.get_char().as_ref().unwrap();
     let data = char.read().await?;
-    println!("Received data: {:?}", data);
+    let intent = Intent::new
+    (
+        String::from_utf8(data).unwrap(), 
+        IntentSource::Resource, 
+        Some(blue_resource));
+    Ok(intent)
+}
+
+pub async fn receive_response(blue_resource: &BluetoothResource) -> bluer::Result<HashMap<String, String>> {
+    let char: &Characteristic = blue_resource.get_char().as_ref().unwrap();
+    let data = char.read().await?;
+    let parsed = try_parse_response(data);
+    Ok(parsed)
+}
+
+pub async fn reject_intent<'a>(blue_resource: &BluetoothResource, intent: Intent<'a>) -> bluer::Result<()> {
+    let char = blue_resource.get_char().as_ref().unwrap();
+    let reject = "reject: ".to_string() + intent.get_description();
+    let data: Vec<u8> = reject.as_bytes().to_vec();
+    char.write(&data).await?;
+    
+    drop(intent);
     Ok(())
 }
 
 // try to parse the response from untape resource
-fn try_parse_response(data: Vec<u8>) -> HashMap<String, Vec<String>> {
+fn try_parse_response(data: Vec<u8>) -> HashMap<String, String> {
     let response = String::from_utf8(data).unwrap();
     let rough_parsed = llmq::prompt(&response);
-    let parsed = parse_rough_response(&rough_parsed);
-    parsed
+    parse_rough_response(&rough_parsed)
 }
 
-fn parse_rough_response(rough_response: &str) -> HashMap<String, Vec<String>> {
-    let sub_intents: HashMap<String, Vec<String>> = rough_response.split(";").map(|s| (s.to_string(), vec![])).collect();
+// use ':' to unwrap the key and value
+fn parse_rough_response(rough_response: &str) -> HashMap<String, String> {
+    let sub_intents: HashMap<String, String> = rough_response.split(";").map(|s| (s.split(":").next().unwrap().to_string(), s.split(":").last().unwrap().to_string())).collect();
     sub_intents
 }

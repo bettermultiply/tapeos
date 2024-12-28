@@ -3,8 +3,8 @@
 use crate::base::intent::{Intent, SubIntent};
 use regex::Regex;
 
-pub fn disassembler<'a>(intent: &mut Intent<'a>) -> Option<()> {
-    let sub_intents: Vec<SubIntent<'a>>;
+pub fn disassembler(intent: &mut Intent) -> Option<()> {
+    let sub_intents: Vec<SubIntent>;
     let rough_intent = disassemble_intent(intent.get_description());
     match format_check(&rough_intent) {
         true => {
@@ -36,8 +36,8 @@ fn format_check(rough_intent: &str) -> bool {
     re.is_match(rough_intent)
 }
 
-fn parse_rough_intent<'a>(rough_intent: &str) -> Vec<SubIntent<'a>> {
+fn parse_rough_intent(rough_intent: &str) -> Vec<SubIntent> {
     // TODO: design actual logic here.
-    let sub_intents: Vec<SubIntent<'a>> = rough_intent.split(";").map(|s| SubIntent::new(s.to_string(), vec![])).collect();
+    let sub_intents: Vec<SubIntent> = rough_intent.split(";").map(|s| SubIntent::new(s.to_string(), vec![])).collect();
     sub_intents
 }   

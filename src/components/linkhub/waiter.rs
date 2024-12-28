@@ -11,7 +11,7 @@ use bluer::{
             CharacteristicNotify, CharacteristicNotifyMethod, CharacteristicWrite, CharacteristicWriteMethod,
             Service,
         },
-        CharacteristicReader, CharacteristicWriter,
+        CharacteristicReader,
     }, 
     AdapterEvent,
     Device,
@@ -20,17 +20,18 @@ use bluer::{
 use futures::{future, pin_mut, StreamExt};
 use std::{collections::BTreeMap, time::Duration};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
     time::{interval, sleep},
 };
 use crate::base::resource::{ResourceType, BluetoothResource};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-
-
+use bluer::gatt::local::CharacteristicControlEvent;
+use crate::base::intent::{Intent, IntentSource};
+use crate::core::inxt::intent::execute_intent;
 // TODO: make TAPE a single resource instead of a vector.
 lazy_static! {
-    pub static ref TAPE: Mutex<Vec<Box<ResourceType>>> = Mutex::new(Vec::new());
+    pub static ref TAPE: Mutex<Vec<ResourceType>> = Mutex::new(Vec::new());
 }
 
 async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
@@ -47,7 +48,7 @@ async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
                         Some(service),
                         Some(cha),
                     );
-                    TAPE.lock().unwrap().push(Box::new(resource));
+                    TAPE.lock().unwrap().push(resource);
                     return Ok(());
                 }
             }
@@ -56,7 +57,7 @@ async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
     Ok(())
 }
 
-async fn remove_resource(device: Device) -> bluer::Result<()> {
+async fn remove_tape(device: Device) -> bluer::Result<()> {
     // TODO: remove the resource from the RESOURCES.
     println!("device removed uuid: {:?}", device.uuids().await?);
     TAPE.lock().unwrap().retain(|resource| !resource.compare_address(device.address()));
@@ -90,7 +91,7 @@ pub async fn waiter() -> bluer::Result<()> {
     };
     let adv_handle = adapter.advertise(le_advertisement).await?;
     let (_, service_handle) = service_control();
-    let (_, char_handle) = characteristic_control();
+    let (char_control, char_handle) = characteristic_control();
     let app = Application {
         services: vec![Service {
             uuid: TAPE_SERVICE_UUID,
@@ -121,17 +122,27 @@ pub async fn waiter() -> bluer::Result<()> {
 
     let stdin = BufReader::new(tokio::io::stdin());
     let mut lines = stdin.lines();
-    let mut value: Vec<u8> = vec![0x10, 0x01, 0x01, 0x10];
+    let mut value: Vec<u8> = vec![];
     let mut read_buf = Vec::new();
     let mut reader_opt: Option<CharacteristicReader> = None;
-    let mut writer_opt: Option<CharacteristicWriter> = None;
     let mut interval = interval(Duration::from_secs(1));
     let device_events = adapter.discover_devices().await?;
     pin_mut!(device_events);
+    pin_mut!(char_control);
 
     loop {
         tokio::select! {
             _ = lines.next_line() => break,
+            evt = char_control.next() => {
+                match evt {
+                    Some(CharacteristicControlEvent::Write(req)) => {
+                        println!("Accepting write event with MTU {} from {}", req.mtu(), req.device_address());
+                        read_buf = vec![0; req.mtu()];
+                        reader_opt = Some(req.accept()?);
+                    },
+                    _ => (),
+                }
+            }
             Some(device_event) = device_events.next() => {
                 match device_event {
                     AdapterEvent::DeviceAdded(addr) => {
@@ -144,37 +155,28 @@ pub async fn waiter() -> bluer::Result<()> {
                     },
                     AdapterEvent::DeviceRemoved(addr) => {
                         let device = adapter.device(addr)?;
-                        remove_resource(device).await?;
+                        remove_tape(device).await?;
                     },
                     _ => (),
                 }
             }
-            _ = interval.tick() => {
-                for v in &mut *value {
-                    *v = v.saturating_sub(1);
-                }
-                if let Some(writer) = writer_opt.as_mut() {
-                    println!("Notifying with value {:x?}", &value);
-                    if let Err(err) = writer.write(&value).await {
-                        println!("Notification stream error: {}", &err);
-                        writer_opt = None;
-                    }
-                }
+            _ = interval.tick(), if TAPE.lock().unwrap().len() > 0 => {
+                // TODO: manually use resource initiatively;
             }
             read_res = async {
                 match &mut reader_opt {
                     Some(reader) => reader.read(&mut read_buf).await,
                     None => future::pending().await,
-                }
-            } => {
+                }} => {
                 match read_res {
                     Ok(0) => {
                         println!("Write stream ended");
+                        let intent = parse_to_intent(&value);
+                        execute_intent(intent).await;
                         reader_opt = None;
                     }
                     Ok(n) => {
-                        value = read_buf[0..n].to_vec();
-                        println!("Write request with {} bytes: {:x?}", n, &value);
+                        value.extend_from_slice(&read_buf[0..n]);
                     }
                     Err(err) => {
                         println!("Write stream error: {}", &err);
@@ -192,4 +194,9 @@ pub async fn waiter() -> bluer::Result<()> {
     sleep(Duration::from_secs(1)).await;
 
     Ok(())
+}
+
+fn parse_to_intent(value: &Vec<u8>) -> Intent {
+    // TODO: parse the value to intent.
+    Intent::new(String::from_utf8(value.clone()).unwrap(), IntentSource::Tape, None)
 }

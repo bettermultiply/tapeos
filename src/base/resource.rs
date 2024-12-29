@@ -4,14 +4,10 @@
 
 
 use std::{path::PathBuf, time::Duration};
-use std::sync::Mutex;
 use bluer::Address;
-use lazy_static::lazy_static;
 use bluer::{Device, gatt::remote::Characteristic, DeviceProperty, gatt::remote::Service};
 use crate::base::intent::{Intent, SubIntent};
-lazy_static! {
-    pub static ref RESOURCES: Mutex<Vec<Box<ResourceType>>> = Mutex::new(Vec::new());
-}
+
 
 pub type ResourceType = BluetoothResource;
 
@@ -33,8 +29,6 @@ pub trait Resource: Send + Sync {
     fn set_interpreter(&mut self, interpreter: PathBuf);
     fn set_description(&mut self, description: String);
 
-    // send intent to the resource. tape->resource(include tape).
-    fn send_intent(&self, intent: &SubIntent);
     // reject intent to the source. tape->source.
     fn reject_intent(&self, intent: &Intent);
     // send response to the source. tape->source.
@@ -152,10 +146,6 @@ impl Resource for BluetoothResource {
 
     fn set_description(&mut self, description: String) {
         self.description = description;
-    }
-
-    fn send_intent(&self, intent: &SubIntent) {
-        // TODO: implement the logic to send intent to the resource.
     }
 
     fn reject_intent(&self, intent: &Intent) {

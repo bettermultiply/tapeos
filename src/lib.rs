@@ -26,12 +26,19 @@ pub mod components {
     }
     pub mod linkhub {
         pub mod seeker;
-        pub mod seek {
-            pub mod bluetooth;
-            pub mod wifi;
-            pub mod internet;
-        }
         pub mod waiter;
+        pub mod bluetooth {
+            pub mod seek;
+            pub mod wait;
+        }
+        pub mod wifi {
+            pub mod seek;
+            pub mod wait;
+        }
+        pub mod internet {
+            pub mod seek;
+            pub mod wait;
+        }
     }
 }
 

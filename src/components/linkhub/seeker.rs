@@ -8,7 +8,13 @@
 // 3. internet
 
 use std::error::Error;
-use crate::components::linkhub::seek::{bluetooth, wifi, internet};
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::Mutex;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+
+use crate::base::resource::ResourceType;
+use crate::components::linkhub::{bluetooth, wifi, internet};
 
 #[allow(dead_code)]
 enum SeekMethod {
@@ -17,31 +23,29 @@ enum SeekMethod {
     Internet,
     RFID,
     NFC,
-    // TODO: add more seek methods
-}
-
-#[allow(dead_code)]
-pub enum Platform {
-    Linux,
-    Windows,
-    Mac,
-    Android,
-    IOS,
 }
 
 const SEEK_METHOD: SeekMethod = SeekMethod::Bluetooth;
-pub const PLATFORM: Platform = Platform::Linux;
+lazy_static! {
+    pub static ref RESOURCES: Mutex<Vec<Box<ResourceType>>> = Mutex::new(Vec::new());
+    pub static ref RESPONSE_QUEUE: Mutex<Vec<HashMap<String, String>>> = Mutex::new(Vec::new());
+    pub static ref SEEK_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
+    pub static ref SEEK_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
+}
+
+pub fn channel_init(seek_send: Option<Sender<String>>, seek_recv: Option<Receiver<String>>) {
+    SEEK_SEND.lock().unwrap().replace(seek_send.unwrap());
+    SEEK_RECV.lock().unwrap().replace(seek_recv.unwrap());
+}
 
 // seek resources and subsystems depend on the SEEK_METHOD.
 pub fn seek() -> Result<(), Box<dyn Error>> {
     match SEEK_METHOD {
-        SeekMethod::Bluetooth => bluetooth::seek(),
-        SeekMethod::Wifi => wifi::seek(),
-        SeekMethod::Internet => internet::seek(),
+        SeekMethod::Bluetooth => bluetooth::seek::seek(),
+        SeekMethod::Wifi => wifi::seek::seek(),
+        SeekMethod::Internet => internet::seek::seek(),
         _ => {
             return Err("Unsupported seek method".into());
         }
     }
 }
-
-

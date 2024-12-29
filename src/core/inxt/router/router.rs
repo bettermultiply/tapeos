@@ -5,7 +5,7 @@ use crate::base::intent::{Intent, SubIntent};
 use crate::base::resource::ResourceType;
 use crate::base::resource::Resource;
 use bluer::Address;
-use crate::components::linkhub::seek::bluetooth::{receive_response, send_intent};
+use crate::components::linkhub::bluetooth::seek::{receive_message, receive_response, send_intent};
 // the distributer will distribute the sub-intents from disassembler to the corresponding resource or subsystem.
 pub async fn router<'a>(intent: &mut Intent<'a>) {
     for sub_intent in intent.iter_sub_intent() {
@@ -16,10 +16,17 @@ pub async fn router<'a>(intent: &mut Intent<'a>) {
             Ok(_) => (),
             Err(_) => continue
         };
-        let response = receive_response(resource).await.unwrap();
-        if response.get("reject").is_none() {
-            break;
-        }
+        let (key, message) = receive_message(resource).await.unwrap();
+            match key.as_str() {
+                "Intent" => {
+                    let response = receive_response(message).await.unwrap();
+                    if response.get("reject").is_none() {
+                        break;
+                    }
+                }
+                _ => ()
+            }
+        
     }
 }
 

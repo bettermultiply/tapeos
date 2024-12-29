@@ -2,201 +2,48 @@
 // when the resource and subsystem are querying to connect, 
 // the waiter will store the information of the resource or subsystem.
 // and maintain the connection.
-
-use bluer::{
-    adv::Advertisement,
-    gatt::{
-        local::{
-            characteristic_control, service_control, Application, Characteristic,
-            CharacteristicNotify, CharacteristicNotifyMethod, CharacteristicWrite, CharacteristicWriteMethod,
-            Service,
-        },
-        CharacteristicReader,
-    }, 
-    AdapterEvent,
-    Device,
-};
-
-use futures::{future, pin_mut, StreamExt};
-use std::{collections::BTreeMap, time::Duration};
-use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
-    time::{interval, sleep},
-};
-use crate::base::resource::{ResourceType, BluetoothResource};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
-use bluer::gatt::local::CharacteristicControlEvent;
-use crate::base::intent::{Intent, IntentSource};
-use crate::core::inxt::intent::execute_intent;
+use std::sync::mpsc::{Sender, Receiver};
+use std::error::Error;
+use crate::components::linkhub::bluetooth;
+use crate::components::linkhub::wifi;
+use crate::components::linkhub::internet;
+use crate::base::resource::ResourceType;
+
+#[allow(dead_code)]
+pub enum WaitMethod {
+    Bluetooth,
+    Wifi,
+    Internet,
+    RFID,
+    NFC,
+}
+
+const WAIT_METHOD: WaitMethod = WaitMethod::Bluetooth;
+
 // TODO: make TAPE a single resource instead of a vector.
 lazy_static! {
     pub static ref TAPE: Mutex<Vec<ResourceType>> = Mutex::new(Vec::new());
+    pub static ref WAIT_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
+    pub static ref WAIT_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
 }
 
-async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
-    let props = device.all_properties().await?;
-    for service in device.services().await? {
-        let uuid = service.uuid().await?;
-        if uuid == TAPE_SERVICE_UUID {
-            for cha in service.characteristics().await? {
-                let uuid = cha.uuid().await?;
-                if uuid == TAPE_CHARACTERISTIC_UUID {
-                    let resource = BluetoothResource::new(
-                        device,
-                        props,
-                        Some(service),
-                        Some(cha),
-                    );
-                    TAPE.lock().unwrap().push(resource);
-                    return Ok(());
-                }
-            }
+pub fn channel_init(wait_send: Option<Sender<String>>, wait_recv: Option<Receiver<String>>) {
+    WAIT_SEND.lock().unwrap().replace(wait_send.unwrap());
+    WAIT_RECV.lock().unwrap().replace(wait_recv.unwrap());
+}
+
+
+pub fn wait() -> Result<(), Box<dyn Error>> {
+    match WAIT_METHOD {
+        WaitMethod::Bluetooth => bluetooth::wait::wait(),
+        WaitMethod::Wifi => wifi::wait::wait(),
+        WaitMethod::Internet => internet::wait::wait(),
+        _ => {
+            return Err("Unsupported wait method".into());
         }
     }
-    Ok(())
 }
 
-async fn remove_tape(device: Device) -> bluer::Result<()> {
-    // TODO: remove the resource from the RESOURCES.
-    println!("device removed uuid: {:?}", device.uuids().await?);
-    TAPE.lock().unwrap().retain(|resource| !resource.compare_address(device.address()));
-    
-    println!("Device removed: {:?}", device.address());
-    Ok(())
-}
 
-// include!("gatt.inc")
-const TAPE_SERVICE_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00001523_1212_efde_1523_785feabcd123);
-// Characteristic UUID for tapeos
-const TAPE_CHARACTERISTIC_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00001524_1212_efde_1523_785feabcd123);
-// Manufaturer id for LE advertise.
-#[allow(dead_code)]
-const TAPE_MANUFACTURER_ID: u16 = 0xf00d;
-
-
-pub async fn waiter() -> bluer::Result<()> {
-    let session = bluer::Session::new().await?;
-    let adapter = session.default_adapter().await?;
-    adapter.set_powered(true).await?;
-
-    let mut manufacturer_data = BTreeMap::new();
-    manufacturer_data.insert(TAPE_MANUFACTURER_ID, vec![0x21, 0x22, 0x23, 0x24]);
-    let le_advertisement = Advertisement {
-        service_uuids: vec![TAPE_SERVICE_UUID].into_iter().collect(),
-        manufacturer_data,
-        discoverable: Some(true),
-        local_name: Some("tapeos".to_string()),
-        ..Default::default()
-    };
-    let adv_handle = adapter.advertise(le_advertisement).await?;
-    let (_, service_handle) = service_control();
-    let (char_control, char_handle) = characteristic_control();
-    let app = Application {
-        services: vec![Service {
-            uuid: TAPE_SERVICE_UUID,
-            primary: true,
-            characteristics: vec![Characteristic {
-                uuid: TAPE_CHARACTERISTIC_UUID,
-                write: Some(CharacteristicWrite {
-                    write: true,
-                    write_without_response: true,
-                    method: CharacteristicWriteMethod::Io,
-                    ..Default::default()
-                }),
-                notify: Some(CharacteristicNotify {
-                    notify: true,
-                    method: CharacteristicNotifyMethod::Io,
-                    ..Default::default()
-                }),
-                control_handle: char_handle,
-                ..Default::default()
-            }],
-            control_handle: service_handle,
-            ..Default::default()
-        }],
-        ..Default::default()
-    };
-    // drop the app_handle to unregister the advertisement.
-    let app_handle = adapter.serve_gatt_application(app).await?;
-
-    let stdin = BufReader::new(tokio::io::stdin());
-    let mut lines = stdin.lines();
-    let mut value: Vec<u8> = vec![];
-    let mut read_buf = Vec::new();
-    let mut reader_opt: Option<CharacteristicReader> = None;
-    let mut interval = interval(Duration::from_secs(1));
-    let device_events = adapter.discover_devices().await?;
-    pin_mut!(device_events);
-    pin_mut!(char_control);
-
-    loop {
-        tokio::select! {
-            _ = lines.next_line() => break,
-            evt = char_control.next() => {
-                match evt {
-                    Some(CharacteristicControlEvent::Write(req)) => {
-                        println!("Accepting write event with MTU {} from {}", req.mtu(), req.device_address());
-                        read_buf = vec![0; req.mtu()];
-                        reader_opt = Some(req.accept()?);
-                    },
-                    _ => (),
-                }
-            }
-            Some(device_event) = device_events.next() => {
-                match device_event {
-                    AdapterEvent::DeviceAdded(addr) => {
-                        let device = adapter.device(addr)?;
-                        store_bluetooth_tape(device).await?;
-                            
-                        if TAPE.lock().unwrap().len() > 0 {
-                            return Ok(());
-                        }
-                    },
-                    AdapterEvent::DeviceRemoved(addr) => {
-                        let device = adapter.device(addr)?;
-                        remove_tape(device).await?;
-                    },
-                    _ => (),
-                }
-            }
-            _ = interval.tick(), if TAPE.lock().unwrap().len() > 0 => {
-                // TODO: manually use resource initiatively;
-            }
-            read_res = async {
-                match &mut reader_opt {
-                    Some(reader) => reader.read(&mut read_buf).await,
-                    None => future::pending().await,
-                }} => {
-                match read_res {
-                    Ok(0) => {
-                        println!("Write stream ended");
-                        let intent = parse_to_intent(&value);
-                        execute_intent(intent).await;
-                        reader_opt = None;
-                    }
-                    Ok(n) => {
-                        value.extend_from_slice(&read_buf[0..n]);
-                    }
-                    Err(err) => {
-                        println!("Write stream error: {}", &err);
-                        reader_opt = None;
-                    }
-                }
-            }
-        }
-    }
-
-
-    println!("Removing service and advertisement");
-    drop(app_handle);
-    drop(adv_handle);
-    sleep(Duration::from_secs(1)).await;
-
-    Ok(())
-}
-
-fn parse_to_intent(value: &Vec<u8>) -> Intent {
-    // TODO: parse the value to intent.
-    Intent::new(String::from_utf8(value.clone()).unwrap(), IntentSource::Tape, None)
-}

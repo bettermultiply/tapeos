@@ -75,9 +75,9 @@ pub fn reject_intent(intent: &Intent) {
     println!("reject the intent: {}", intent.get_description());
     match intent.get_intent_source() {
         IntentSource::Tape => {
-            let tape = TAPE.lock().unwrap();
-            let source = tape.first().unwrap();
-            source.reject_intent(intent);
+            TAPE.lock().unwrap()
+                .first().unwrap()
+                .reject_intent(intent);
         },
         _ => {
             let source = intent.get_source();

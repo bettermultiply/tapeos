@@ -1,18 +1,36 @@
-use crate::base::resource::RESOURCES;
-use crate::base::resource::BluetoothResource;
-use bluer::{Device, AdapterEvent, gatt::remote::{Characteristic, Service}};
+use bluer::{
+    Address, Device, AdapterEvent, 
+    gatt::remote::{Characteristic, Service}
+};
 use std::error::Error;
-use std::time::Duration;
-use tokio::time::sleep;
-use futures::{pin_mut, StreamExt};
-use crate::components::linkhub::seeker::{Platform, PLATFORM};
-use crate::base::intent::Intent;
-use crate::tools::llmq;
-use std::collections::HashMap;
-use crate::base::intent::IntentSource;
-use crate::base::resource::Resource;
 use std::path::PathBuf;
-use crate::base::resource::Position;
+use std::time::Duration;
+use std::collections::HashMap;
+use futures::{pin_mut, StreamExt, future};
+use tokio::{
+    io::{BufReader, AsyncBufReadExt},
+    time::{sleep, interval}
+};
+use crate::{
+    tools::llmq,
+    base::{ 
+        intent::{IntentSource, Intent},
+        resource::{Resource, Position, BluetoothResource}
+    },
+    components::linkhub::seeker::{RESOURCES, SEEK_RECV, RESPONSE_QUEUE},
+    core::inxt::intent::execute_intent
+};
+
+#[allow(dead_code)]
+enum Platform {
+    Linux,
+    Windows,
+    Mac,
+    Android,
+    IOS,
+}
+
+const PLATFORM: Platform = Platform::Linux;
 
 // seek by bluetooth. And for different platform, we will implement different logic.
 pub fn seek() -> Result<(), Box<dyn Error>> {
@@ -44,49 +62,68 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
     let adapter = session.default_adapter().await?;
     adapter.set_powered(true).await?;
     
-    {
-        println!(
-            "Discovering on Bluetooth adapter {} with address {}", 
-            adapter.name(), 
-            adapter.address().await?
-        );
-        
-        let devices_events = adapter.discover_devices().await?;
-        pin_mut!(devices_events);
-        let mut done = false;
+    println!(
+    "Discovering on Bluetooth adapter {} with address {}", 
+        adapter.name(), 
+        adapter.address().await?
+    );
+    let stdin = BufReader::new(tokio::io::stdin());
+    
+    let mut lines = stdin.lines();
+    let mut interval = interval(Duration::from_secs(1));
+    
+    let devices_events = adapter.discover_devices().await?;
+    pin_mut!(devices_events);
 
-        while let Some(device_event) = devices_events.next().await {
-            match device_event {
-                AdapterEvent::DeviceAdded(addr) => {
-                    let device = adapter.device(addr)?;
-                    let name = device.name().await?.unwrap_or_default();
-                    match find_tape_characteristic(device).await? {
-                        Ok(Some(_)) => {
-                            println!("    find tapeos {}", name);
-                            done = true;
-                        },
-                        Ok(None) => {
-                            println!("    no tapeos {}", name);
-
-                        },
-                        Err(err) => {
-                            println!("    Device failed: {}", err);
-                            let _ = adapter.remove_device(addr).await;
+    loop {
+        tokio::select! {
+            // exit the loop
+            _ = lines.next_line() => break,
+            // handle the device connect and disconnect
+            Some(device_event) = devices_events.next() => {
+                match device_event {
+                    AdapterEvent::DeviceAdded(addr) => {
+                        let device = adapter.device(addr)?;
+                        let name = device.name().await?.unwrap_or_default();
+                        match find_tape_characteristic(device).await? {
+                            Ok(Some(_)) => {
+                                println!("    find tapeos {}", name);
+                            },
+                            Ok(None) => {
+                                println!("    no tapeos {}", name);
+                                let _ = adapter.remove_device(addr).await;
+                            },
+                            Err(err) => {
+                                println!("    Device failed: {}", err);
+                                let _ = adapter.remove_device(addr).await;
+                            }
                         }
                     }
+                    AdapterEvent::DeviceRemoved(addr) => {
+                        // TODO: Maybe we can detect if connection is lost here.
+                        remove_resource(addr);
+                        println!("Device removed: {addr}");
+                    }
+                    _ => (),
                 }
-                AdapterEvent::DeviceRemoved(addr) => {
-                    // TODO: Maybe we can detect if connection is lost here.
-                    RESOURCES.lock().unwrap().retain(|resource| !resource.compare_address(addr));
-                    println!("Device removed: {addr}");
+            },
+            // check resource action
+            _ = interval.tick() => {
+                check_resources().await?;
+            },
+            // check waiter request
+            request = async {
+                match SEEK_RECV.lock().unwrap().as_ref().unwrap().try_recv() {
+                    Ok(v) => v,
+                    Err(err) => {
+                        println!("seeker intent error: {}", err);
+                        future::pending().await
+                    }
                 }
-                _ => (),
-            }
-            if done {
-                break;
+            } => {
+                execute_waiter_request(request).await;
             }
         }
-        println!("Discovery completed");
     }
 
     Ok(())
@@ -96,6 +133,30 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
 const TAPE_SERVICE_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00001234_0000_1000_8000_00805f9b34fb); // Example UUID
 const TAPE_CHARACTERISTIC_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00005678_0000_1000_8000_00805f9b34fb); // Example UUID
 const RETRIES: u8 = 2;
+
+async fn check_resources() -> bluer::Result<()> {
+    println!("check resources");
+    let resources = RESOURCES.lock().unwrap();
+    for resource in resources.iter() {
+        query_status(resource).await?;
+        let char = resource.get_char().as_ref().unwrap();
+        if char.flags().await?.read {
+            let (key, value) = receive_message(resource).await?;
+            match key.as_str() {
+                "Intent" => {
+                    let intent = receive_intent(value, resource).await?;
+                    execute_intent(intent).await;
+                }
+                "Response" => {
+                    let response = receive_response(value).await?;
+                    store_response(response).await?;
+                }
+                _ => (),
+            }
+        }
+    }
+    Ok(())
+}
 
 async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result<Option<Characteristic>>> {
     
@@ -153,10 +214,22 @@ async fn store_resource(device: Device, cha: Characteristic, service: Service) -
     Ok(())
 }
 
+fn remove_resource(addr: Address) {
+    RESOURCES.lock().unwrap().retain(|resource| !resource.compare_address(addr));
+}
+
 // complete the resource by the resource pool
 async fn complete_resource(blue_resource: &mut BluetoothResource) -> bluer::Result<()> {
     query_status(blue_resource).await?;
-    let response = receive_response(blue_resource).await?;
+    let value: String;
+    loop {
+        let (k, v) = receive_message(blue_resource).await?;
+        if k == "Response" {
+            value = v;
+            break;
+        }
+    }
+    let response = receive_response(value).await?;
     let resource: &mut dyn Resource = blue_resource;
     let status = resource.get_status();
     for status_pair in response.get("status").unwrap().split(';') {
@@ -192,21 +265,27 @@ pub async fn send_intent<'a>(blue_resource: &BluetoothResource, intent_descripti
     Ok(())
 }
 
-pub async fn receive_intent(blue_resource: &BluetoothResource) -> bluer::Result<Intent> {
+pub async fn receive_message(blue_resource: &BluetoothResource) -> bluer::Result<(String, String)> {
     let char = blue_resource.get_char().as_ref().unwrap();
     let data = char.read().await?;
+    let raw = String::from_utf8(data).unwrap();
+    let parts = raw.splitn(2, ':').collect::<Vec<&str>>();
+    Ok((parts[0].to_string(), parts[1].to_string()))
+}
+
+pub async fn receive_intent(raw_intent: String, blue_resource: &BluetoothResource) -> bluer::Result<Intent> {
     let intent = Intent::new
     (
-        String::from_utf8(data).unwrap(), 
+        raw_intent,
         IntentSource::Resource, 
-        Some(blue_resource));
+        Some(blue_resource)
+    );
+
     Ok(intent)
 }
 
-pub async fn receive_response(blue_resource: &BluetoothResource) -> bluer::Result<HashMap<String, String>> {
-    let char: &Characteristic = blue_resource.get_char().as_ref().unwrap();
-    let data = char.read().await?;
-    let parsed = try_parse_response(data);
+pub async fn receive_response(response: String) -> bluer::Result<HashMap<String, String>> {
+    let parsed = try_parse_response(response);
     Ok(parsed)
 }
 
@@ -221,14 +300,46 @@ pub async fn reject_intent<'a>(blue_resource: &BluetoothResource, intent: Intent
 }
 
 // try to parse the response from untape resource
-fn try_parse_response(data: Vec<u8>) -> HashMap<String, String> {
-    let response = String::from_utf8(data).unwrap();
-    let rough_parsed = llmq::prompt(&response);
+fn try_parse_response(data: String) -> HashMap<String, String> {
+    let rough_parsed = llmq::prompt(&data);
     parse_rough_response(&rough_parsed)
 }
 
 // use ':' to unwrap the key and value
 fn parse_rough_response(rough_response: &str) -> HashMap<String, String> {
+    // TODO: implement the logic to parse the rough response
     let sub_intents: HashMap<String, String> = rough_response.split(";").map(|s| (s.split(":").next().unwrap().to_string(), s.split(":").last().unwrap().to_string())).collect();
     sub_intents
+}
+
+pub async fn store_response(response: HashMap<String, String>) -> bluer::Result<()> {
+    RESPONSE_QUEUE.lock().unwrap().push(response);
+    Ok(())
+}
+
+pub async fn execute_waiter_request(request: String) {
+    let map = parse_request(request);
+    
+    for (key, value) in map {
+        match key.as_str() {
+            "Intent" => {
+                println!("Intent: {}", value);
+                // TODO: implement the logic
+            }
+            _ => {
+                println!("Unsupported request: {}", key);
+            },
+        }
+    }
+}
+
+fn parse_request(request: String) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for line in request.lines() {
+        let parts = line.splitn(2, ':').collect::<Vec<&str>>();
+        if parts.len() == 2 {
+            map.insert(parts[0].to_string(), parts[1].to_string());
+        }
+    }
+    map
 }

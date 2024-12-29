@@ -1,8 +1,11 @@
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
+use std::sync::Arc;
+
 use crate::base::resource::ResourceType;
 use crate::base::resource::Resource;
 use bluer::Address;
+use crate::base::resource::find_resource;
 // the intent struct is not used for sending between outside and inside the system.
 // it is used for internal manipulation.S
 pub struct Intent<'a> {
@@ -23,8 +26,8 @@ pub enum IntentSource {
 pub struct SubIntent {
     description: String,
     complete: bool,
-    available_resources: Vec<ResourceType>,
-    selected_resource: Option<ResourceType>,
+    available_resources: Vec<Arc<ResourceType>>,
+    selected_resource: Option<Arc<ResourceType>>,
 }
 
 impl<'a> Intent<'a> {
@@ -62,11 +65,18 @@ impl<'a> Intent<'a> {
 }
 
 impl SubIntent {
-    pub fn new(description: String, available_resources: Vec<ResourceType>) -> Self {
+    pub fn new(description: String, available_resources: Vec<String>) -> Self {
+        let available_resources: Vec<Arc<ResourceType>> = 
+            available_resources
+            .iter()
+            .map(|r| {
+                find_resource(r.to_string()).unwrap()
+            })
+            .collect();
         Self { description, complete: false, available_resources, selected_resource: None }
     }
 
-    pub fn iter_available_resources(&self) -> impl Iterator<Item = &ResourceType> {
+    pub fn iter_available_resources(&self) -> impl Iterator<Item = &Arc<ResourceType>> {
         self.available_resources.iter()
     }
 
@@ -74,8 +84,8 @@ impl SubIntent {
         self.available_resources.retain(|r| r.compare_address(address));
     }
 
-    pub fn get_selected_resource(&self) -> Option<&ResourceType> {
-        self.selected_resource.as_ref()
+    pub fn get_selected_resource(&self) -> Option<Arc<ResourceType>> {
+        self.selected_resource.clone()
     }
 
     pub fn set_selected_resource(&mut self, address: Address) {
@@ -99,11 +109,11 @@ impl SubIntent {
         self.complete = true;
     }
 
-    pub fn add(&mut self, resources: Vec<ResourceType>) {
+    pub fn add(&mut self, resources: Vec<Arc<ResourceType>>) {
         self.available_resources.extend(resources);
     }
 
-    pub fn pop(&mut self) -> ResourceType {
+    pub fn pop(&mut self) -> Arc<ResourceType> {
         self.available_resources.pop().unwrap()
     }
     

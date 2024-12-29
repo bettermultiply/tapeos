@@ -7,15 +7,17 @@ use crate::tools::idgen::{generate_id, IdType};
 use chrono::Weekday;
 use crate::base::intent::IntentSource;
 pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());
+use crate::base::intent::Intent;
 
 // judge whether to accept the intent.
 // actually rule means not to do something.
 pub enum RuleDetail {
-    Essential,
+    Essential(fn(&Intent) -> bool),
     Source(IntentSource), // based on the source of the intent.
     Description(String), // based on the description of the intent. which actually we will use ai to judge intent.
     Time(Duration), // based on the time to reject the intent.
     Weekday(Weekday), // based on the weekday to reject the intent.
+    UserDefined(String), // based on user description and ai.
 }
 
 pub struct Rule {
@@ -120,7 +122,7 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             id: 0,
             name: "risk".to_string(), 
             description: "risk".to_string(), 
-            rule_detail: RuleDetail::Essential, 
+            rule_detail: RuleDetail::Essential(risk), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
@@ -131,7 +133,7 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             id: 1,
             name: "privilege".to_string(), 
             description: "privilege".to_string(), 
-            rule_detail: RuleDetail::Essential, 
+            rule_detail: RuleDetail::Essential(privilege), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
@@ -142,9 +144,21 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             id: 2,
             name: "reject".to_string(), 
             description: "reject".to_string(), 
-            rule_detail: RuleDetail::Essential, 
+            rule_detail: RuleDetail::Essential(reject), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
     ),
 ]));
+
+fn risk(intent: &Intent) -> bool {
+    intent.get_description().contains("risk")
+}
+
+fn privilege(intent: &Intent) -> bool {
+    intent.get_description().contains("sudo")
+}
+
+fn reject(intent: &Intent) -> bool {
+    intent.get_description().contains("reject")
+}

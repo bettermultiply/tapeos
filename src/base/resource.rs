@@ -3,12 +3,11 @@
 // information.
 
 
+use std::sync::Arc;
 use std::{path::PathBuf, time::Duration};
 use bluer::Address;
 use bluer::{Device, gatt::remote::Characteristic, DeviceProperty, gatt::remote::Service};
-use crate::base::intent::{Intent, SubIntent};
-
-
+use crate::components::linkhub::seeker::RESOURCES;
 pub type ResourceType = BluetoothResource;
 
 // resource is a physical or virtual device(including human and software), 
@@ -18,8 +17,10 @@ pub type ResourceType = BluetoothResource;
 // process intents, which means it do not need an interpreter to interpret 
 // the intent.
 pub trait Resource: Send + Sync {
+    fn get_name(&self) -> String;
     fn get_type_name(&self) -> &str;
     fn get_status(&mut self) -> &mut Status;
+    fn get_status_str(&self) -> String;
     fn get_description(&self) -> &str;
     fn get_command(&self) -> &Vec<String>;
 
@@ -29,17 +30,9 @@ pub trait Resource: Send + Sync {
     fn set_interpreter(&mut self, interpreter: PathBuf);
     fn set_description(&mut self, description: String);
 
-    // reject intent to the source. tape->source.
-    fn reject_intent(&self, intent: &Intent);
-    // send response to the source. tape->source.
-    fn send_response(&self, response: &Intent);
-    // query the resource's status.
-    fn query_status(&self);
-    // tell the resource to execute the intent.
-    fn execute_intent(&self, intent: &SubIntent);
+    fn reject_intent(&self, intent: &str);
 }
 
-#[allow(unused)]
 pub struct BluetoothResource {
     // id is a unique identifier for the resource, can't be changed.
     address: Address,
@@ -65,7 +58,6 @@ pub struct BluetoothResource {
     interpreter: PathBuf, 
 }
 
-#[allow(unused)]
 impl BluetoothResource {
     pub fn new(device: Device, props: Vec<DeviceProperty>, service: Option<Service>, char: Option<Characteristic>) -> Self {
         Self { 
@@ -112,6 +104,16 @@ impl BluetoothResource {
 
 #[allow(unused)]
 impl Resource for BluetoothResource {
+    fn get_name(&self) -> String {
+        for prop in self.props.iter() {
+            match prop {
+                DeviceProperty::Name(name) => return name.to_string(),
+                _ => (),
+            }
+        }
+        return "".to_string();
+    }
+
     fn get_type_name(&self) -> &str {
         &self.type_name
     }
@@ -148,25 +150,21 @@ impl Resource for BluetoothResource {
         self.description = description;
     }
 
-    fn reject_intent(&self, intent: &Intent) {
+    fn get_status_str(&self) -> String {
+        format!("{:?}", self.status)
+    }
+
+    fn reject_intent(&self, intent_description: &str) {
         // TODO: implement the logic to reject intent to the source.
-    }
-
-    fn send_response(&self, response: &Intent) {
-        // TODO: implement the logic to send response to the source.
-    }
-
-    fn query_status(&self) {
-        // TODO: implement the logic to query the resource's status.
-    }
-
-    fn execute_intent(&self, intent: &SubIntent) {
-        // TODO: implement the logic to execute the intent.
+        let char = self.get_char().as_ref().unwrap();
+        let reject = "reject: ".to_string() + intent_description;
+        let data: Vec<u8> = reject.as_bytes().to_vec();
+        char.write(&data);
     }
 }
 
 // Status is unique for each resource. However, there are some common statuses.
-#[allow(unused)]
+#[derive(Debug)]
 pub struct Status {
     // aviliability shows the resource is available or not.
     aviliability: bool,
@@ -205,7 +203,7 @@ impl Status {
 
 // position is a common field for all resources.
 // it is a 3D vector, which can be used to describe the position of the resource.
-#[allow(unused)]
+#[derive(Debug)]
 pub struct Position {
     x: f32,
     y: f32,
@@ -221,4 +219,15 @@ impl Position {
     pub fn new_from_vec(position: Vec<f32>) -> Self {
         Self { x: position[0], y: position[1], z: position[2] }
     }
+}
+
+pub fn find_resource<'a>(device_name: String) -> Option<Arc<ResourceType>> {
+    let resources = RESOURCES.lock().unwrap();
+    for resource in resources.iter() {
+        let r: &dyn Resource = resource.as_ref();
+        if r.get_name() == device_name {
+            return Some(Arc::clone(resource));
+        }
+    }
+    None
 }

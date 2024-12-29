@@ -9,7 +9,7 @@
 
 use std::error::Error;
 use std::sync::mpsc::{Sender, Receiver};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -27,7 +27,7 @@ enum SeekMethod {
 
 const SEEK_METHOD: SeekMethod = SeekMethod::Bluetooth;
 lazy_static! {
-    pub static ref RESOURCES: Mutex<Vec<Box<ResourceType>>> = Mutex::new(Vec::new());
+    pub static ref RESOURCES: Mutex<Vec<Arc<ResourceType>>> = Mutex::new(Vec::new());
     pub static ref RESPONSE_QUEUE: Mutex<Vec<HashMap<String, String>>> = Mutex::new(Vec::new());
     pub static ref SEEK_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref SEEK_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);

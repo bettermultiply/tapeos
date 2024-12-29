@@ -2,7 +2,7 @@ use bluer::{
     Address, Device, AdapterEvent, 
     gatt::remote::{Characteristic, Service}
 };
-use std::error::Error;
+use std::{error::Error, sync::Arc};
 use std::path::PathBuf;
 use std::time::Duration;
 use std::collections::HashMap;
@@ -210,7 +210,7 @@ async fn store_resource(device: Device, cha: Characteristic, service: Service) -
         Some(cha),
     );
     complete_resource(&mut resource).await?;
-    RESOURCES.lock().unwrap().push(Box::new(resource));
+    RESOURCES.lock().unwrap().push(Arc::new(resource));
     Ok(())
 }
 
@@ -270,6 +270,10 @@ pub async fn receive_message(blue_resource: &BluetoothResource) -> bluer::Result
     let data = char.read().await?;
     let raw = String::from_utf8(data).unwrap();
     let parts = raw.splitn(2, ':').collect::<Vec<&str>>();
+    if parts.len() < 2 {
+        // if there is no specific format, use it as intent.
+        return Ok(("Intent".to_string(), parts[0].to_string()))
+    }
     Ok((parts[0].to_string(), parts[1].to_string()))
 }
 

@@ -8,7 +8,6 @@ use crate::{
 };
 
 pub async fn monitor<'a>(intent: &mut Intent<'a>) {
-    // TODO: implement the logic to monitor the intent execution
     loop {
         let mut is_finished = true;
         for sub_intent in intent.iter_sub_intent() {
@@ -16,7 +15,7 @@ pub async fn monitor<'a>(intent: &mut Intent<'a>) {
                 continue;
             }
             let resource = sub_intent.get_selected_resource().unwrap();
-            let (key, message) = receive_message(resource).await.unwrap();
+            let (key, message) = receive_message(&resource).await.unwrap();
             match key.as_str() {
                 "Intent" => {
                     let response = receive_response(message).await.unwrap();

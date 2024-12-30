@@ -2,12 +2,13 @@
 // and provide the interface for other components to access and update the 
 // information.
 
-
-use std::sync::Arc;
-use std::{path::PathBuf, time::Duration};
-use bluer::Address;
-use bluer::{Device, gatt::remote::Characteristic, DeviceProperty, gatt::remote::Service};
+use std::{path::PathBuf, time::Duration, sync::Arc};
+use bluer::{
+    Address, Device, DeviceProperty, 
+    gatt::remote::{Characteristic, Service}
+};
 use crate::components::linkhub::seeker::RESOURCES;
+
 pub type ResourceType = BluetoothResource;
 
 // resource is a physical or virtual device(including human and software), 
@@ -155,7 +156,6 @@ impl Resource for BluetoothResource {
     }
 
     fn reject_intent(&self, intent_description: &str) {
-        // TODO: implement the logic to reject intent to the source.
         let char = self.get_char().as_ref().unwrap();
         let reject = "reject: ".to_string() + intent_description;
         let data: Vec<u8> = reject.as_bytes().to_vec();
@@ -204,6 +204,7 @@ impl Status {
 // position is a common field for all resources.
 // it is a 3D vector, which can be used to describe the position of the resource.
 #[derive(Debug)]
+#[allow(unused)]
 pub struct Position {
     x: f32,
     y: f32,

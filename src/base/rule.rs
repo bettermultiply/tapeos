@@ -1,20 +1,24 @@
 // in this file, we will store rules for judging the intent.
 
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use std::sync::LazyLock;
-use crate::tools::idgen::{generate_id, IdType};
+use std::{
+    sync::LazyLock,
+    collections::HashMap,
+    time::{Duration, Instant}
+};
 use chrono::Weekday;
-use crate::base::intent::IntentSource;
+use crate::{
+    tools::idgen::{generate_id, IdType},
+    base::intent::{IntentSource, Intent}
+};
+
+
 pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());
-use crate::base::intent::Intent;
 
 // judge whether to accept the intent.
 // actually rule means not to do something.
 pub enum RuleDetail {
     Essential(fn(&Intent) -> bool),
     Source(IntentSource), // based on the source of the intent.
-    Description(String), // based on the description of the intent. which actually we will use ai to judge intent.
     Time(Duration), // based on the time to reject the intent.
     Weekday(Weekday), // based on the weekday to reject the intent.
     UserDefined(String), // based on user description and ai.
@@ -26,7 +30,6 @@ pub struct Rule {
     description: String,
     // we encourage that one Rule judge one feature of the intent.
     rule_detail: RuleDetail,
-    // rule: String, // TODO: we need more specific and controllable ways to describe and apply the rule.
     valid_time: Duration,
     created_time: Instant,
 }
@@ -151,6 +154,8 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
     ),
 ]));
 
+
+// TODO: we need to implement the rule functions.
 fn risk(intent: &Intent) -> bool {
     intent.get_description().contains("risk")
 }

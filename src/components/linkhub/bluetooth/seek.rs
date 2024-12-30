@@ -1,16 +1,22 @@
+// seek by bluetooth. And for different platform, we will implement different logic.
+
 use bluer::{
     Address, Device, AdapterEvent, 
     gatt::remote::{Characteristic, Service}
 };
-use std::{error::Error, sync::Arc};
-use std::path::PathBuf;
-use std::time::Duration;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap, 
+    time::Duration, 
+    error::Error, 
+    sync::Arc, 
+    path::PathBuf
+};
 use futures::{pin_mut, StreamExt, future};
 use tokio::{
     io::{BufReader, AsyncBufReadExt},
     time::{sleep, interval}
 };
+
 use crate::{
     tools::llmq,
     base::{ 
@@ -100,7 +106,6 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
                         }
                     }
                     AdapterEvent::DeviceRemoved(addr) => {
-                        // TODO: Maybe we can detect if connection is lost here.
                         remove_resource(addr);
                         println!("Device removed: {addr}");
                     }
@@ -168,7 +173,7 @@ async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result
         sleep(Duration::from_secs(2)).await;
         if !device.is_connected().await? {
             println!("    Connecting...");
-            let mut retries = RETRIES; // TODO: make it configurable
+            let mut retries = RETRIES;
             loop {
                 match device.connect().await {
                     Ok(()) => break,
@@ -255,8 +260,6 @@ pub async fn query_status(blue_resource: &BluetoothResource) -> bluer::Result<()
 }
 
 pub async fn send_intent<'a>(blue_resource: &BluetoothResource, intent_description: &str) -> bluer::Result<()> {
-    // TODO: implement the logic to send the intent to the resource
-    // let resource: &dyn Resource = blue_resource.clone();
     let char = blue_resource.get_char().as_ref().unwrap();
     let data: Vec<u8> = intent_description.as_bytes().to_vec();
     char.write(&data).await?;
@@ -289,7 +292,7 @@ pub async fn receive_intent(raw_intent: String, blue_resource: &BluetoothResourc
 }
 
 pub async fn receive_response(response: String) -> bluer::Result<HashMap<String, String>> {
-    let parsed = try_parse_response(response);
+    let parsed = try_parse_response(response).await;
     Ok(parsed)
 }
 
@@ -304,14 +307,13 @@ pub async fn reject_intent<'a>(blue_resource: &BluetoothResource, intent: Intent
 }
 
 // try to parse the response from untape resource
-fn try_parse_response(data: String) -> HashMap<String, String> {
-    let rough_parsed = llmq::prompt(&data);
+async fn try_parse_response(data: String) -> HashMap<String, String> {
+    let rough_parsed = llmq::prompt(&data).await;
     parse_rough_response(&rough_parsed)
 }
 
 // use ':' to unwrap the key and value
 fn parse_rough_response(rough_response: &str) -> HashMap<String, String> {
-    // TODO: implement the logic to parse the rough response
     let sub_intents: HashMap<String, String> = rough_response.split(";").map(|s| (s.split(":").next().unwrap().to_string(), s.split(":").last().unwrap().to_string())).collect();
     sub_intents
 }
@@ -328,7 +330,7 @@ pub async fn execute_waiter_request(request: String) {
         match key.as_str() {
             "Intent" => {
                 println!("Intent: {}", value);
-                // TODO: implement the logic
+                execute_intent(Intent::new(value, IntentSource::Resource, None)).await;
             }
             _ => {
                 println!("Unsupported request: {}", key);

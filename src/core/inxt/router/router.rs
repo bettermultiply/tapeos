@@ -1,12 +1,16 @@
 // in this file, we will implement the router for the intent execution.
 // the router will distribute the intent to the corresponding resource or subsystem.
 
-use crate::base::intent::{Intent, SubIntent};
-use crate::base::resource::ResourceType;
-use crate::base::resource::Resource;
-use crate::tools::llmq::prompt;
 use bluer::Address;
-use crate::components::linkhub::bluetooth::seek::{receive_message, receive_response, send_intent};
+use crate::{
+    base::{
+        intent::{Intent, SubIntent},
+        resource::{ResourceType, Resource}
+    },
+    tools::llmq::prompt,
+    components::linkhub::bluetooth::seek::{receive_message, receive_response, send_intent}
+};
+
 // the distributer will distribute the sub-intents from disassembler to the corresponding resource or subsystem.
 pub async fn router<'a>(intent: &mut Intent<'a>) {
     for sub_intent in intent.iter_sub_intent() {
@@ -33,13 +37,11 @@ pub async fn router<'a>(intent: &mut Intent<'a>) {
     }
 }
 
-// TODO: when shall we select the resource? when disassemble? when distribute?
 async fn select_resource(sub_intent: &SubIntent) -> Address {
-    // TODO: implement the logic to select the resource for the sub-intent
     let mut best_resource: Option<&ResourceType> = None;
     let mut best_score = -1;
     for resource in sub_intent.iter_available_resources() {
-        let score = score(sub_intent.get_description(), resource);
+        let score = score(sub_intent.get_description(), resource).await;
         if score > best_score {
             best_score = score;
             best_resource = Some(resource);
@@ -50,12 +52,10 @@ async fn select_resource(sub_intent: &SubIntent) -> Address {
 
 const SCORE_METHOD: &str = "";
 
-fn score(sub_intent: &str, resource: &ResourceType) -> i32 {
-    // TODO: implement the logic to score the sub-intent
-    // TODO: use ai here to score the sub-intent as a test.
+async fn score(sub_intent: &str, resource: &ResourceType) -> i32 {
     match SCORE_METHOD {
         "ai" => {
-            score_by_ai(sub_intent, resource)
+            score_by_ai(sub_intent, resource).await
         }
         _ => {
             0
@@ -63,10 +63,9 @@ fn score(sub_intent: &str, resource: &ResourceType) -> i32 {
     }
 }
 
-fn score_by_ai(sub_intent: &str, resource: &ResourceType) -> i32 {
-    // TODO: implement the logic to score the sub-intent by ai
+async fn score_by_ai(sub_intent: &str, resource: &ResourceType) -> i32 {
     let resource_ref: &dyn Resource = resource;
-    prompt(
+    let score = prompt(
         format!("
         score the resource for the sub-intent, return a score between 0 and 100 please.
         sub_intent: {sub_intent}
@@ -75,8 +74,8 @@ fn score_by_ai(sub_intent: &str, resource: &ResourceType) -> i32 {
         resource_ref.get_description(),
         resource_ref.get_status_str()
         ).as_str()
-    );            
-    sub_intent.len() as i32 + resource_ref.get_description().len() as i32
+    ).await;
+    score.parse::<i32>().unwrap()
 }
 
 pub async fn reroute(sub_intent: &mut SubIntent) {

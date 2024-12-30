@@ -1,14 +1,17 @@
-use tapeos::components::linkhub::seeker;
-use tapeos::components::linkhub::waiter;
-use std::thread;
-use std::sync::mpsc::{Sender, Receiver, channel};
+use tapeos::{
+    components::linkhub::{seeker, waiter},
+    tools::idgen::init_id_generator
+};
+use std::{
+    thread, 
+    sync::mpsc::{Sender, Receiver, channel}
+};
 
 const ENABLE_SEEK: bool = true;
 const ENABLE_WAIT: bool = true;
 const ENABLE_BOTH: bool = ENABLE_SEEK && ENABLE_WAIT;
 
 fn main() {
-    // TODO: decide what type we want to use, use String temporarily.
     let mut seek_send: Option<Sender<String>> = None;
     let mut wait_send: Option<Sender<String>> = None;
     let mut seek_recv: Option<Receiver<String>> = None;
@@ -18,6 +21,13 @@ fn main() {
         (seek_send, wait_recv) = (Some(send), Some(recv));
         let (send, recv) = channel::<String>();
         (wait_send, seek_recv) = (Some(send), Some(recv));
+    }
+    match init_id_generator() {
+        Ok(_) => (),
+        Err(e) => {
+            println!("Error initializing id generator: {}", e);
+            return;
+        }
     }
 
     let mut handles = vec![];

@@ -3,7 +3,6 @@
 
 use idgenerator::*;
 
-// TODO: how to use this function only once?
 pub fn init_id_generator() -> Result<(), OptionError> {
 
     let mut options: Vec<IdGeneratorOptions> = vec![];

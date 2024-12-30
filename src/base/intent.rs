@@ -1,11 +1,9 @@
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
 use std::sync::Arc;
-
-use crate::base::resource::ResourceType;
-use crate::base::resource::Resource;
 use bluer::Address;
-use crate::base::resource::find_resource;
+use crate::base::resource::{ ResourceType, Resource, find_resource };
+
 // the intent struct is not used for sending between outside and inside the system.
 // it is used for internal manipulation.S
 pub struct Intent<'a> {

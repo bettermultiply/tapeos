@@ -11,19 +11,19 @@ pub fn schedule_intent(intent: &Intent) -> bool {
 
 fn schedule_dependency(intent: &Intent) -> bool {
     // TODO: implement the logic to verify the dependency of the intent
-    true
+    !intent.is_complete()
 }
 
 
 fn verify_resource(intent: &Intent) -> bool {
     // TODO: implement the logic to verify the resource of the intent
-    true
+    !intent.is_complete()
 }
 
 
 fn verify_subintent(intent: &Intent) -> bool {
     // TODO: implement the logic to verify the subintent of the intent
-    true
+    !intent.is_complete()
 }
 
 

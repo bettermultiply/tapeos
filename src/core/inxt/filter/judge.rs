@@ -1,13 +1,17 @@
 // in this file, we will implement the filter for the intent.
 // the filter will judge if the intent can be processed by the tapeos.
 
-use crate::base::intent::Intent;
-use crate::base::rule::{Rule, RuleDetail, STATIC_RULES, iter_rules};
-use crate::base::intent::IntentSource;
-use crate::components::linkhub::waiter::TAPE;
-use crate::tools::llmq::prompt;
-use crate::base::resource::Resource;
 use chrono::{Local, Datelike};
+
+use crate::{
+    components::linkhub::waiter::TAPE,
+    tools::llmq::prompt,
+    base::resource::Resource
+};
+use crate::base::{
+    intent::{Intent, IntentSource},
+    rule::{Rule, RuleDetail, STATIC_RULES, iter_rules}
+};
 
 pub enum JudgeResult {
     Rejected,
@@ -16,14 +20,14 @@ pub enum JudgeResult {
 }
 
 // judge if the intent can be processed by the tapeos.
-pub fn intent_judge(intent: &Intent) -> JudgeResult {
+pub async fn intent_judge<'a>(intent: &Intent<'a>) -> JudgeResult {
     println!("intent judge the intent: {}", intent.get_description());
     
-    if reject_judge(intent) {
+    if reject_judge(intent).await {
         return JudgeResult::Rejected;
     }
 
-    if essential_judge(intent) && user_judge(intent) {
+    if essential_judge(intent).await && user_judge(intent).await {
         return JudgeResult::Accept;
     }
 
@@ -32,8 +36,8 @@ pub fn intent_judge(intent: &Intent) -> JudgeResult {
 
 // judge if the intent is to reject.
 // if the intent is rejected, return true.
-pub fn reject_judge(intent: &Intent) -> bool {
-    if judge(intent, &STATIC_RULES["reject"]) {
+pub async fn reject_judge<'a>(intent: &Intent<'a>) -> bool {
+    if judge(intent, &STATIC_RULES["reject"]).await {
         println!("intent: {} is rejected", intent.get_description());
         return true;
     }
@@ -41,30 +45,30 @@ pub fn reject_judge(intent: &Intent) -> bool {
 }
 
 // should be used to judge  every intent.
-fn essential_judge(intent: &Intent) -> bool {
+async fn essential_judge<'a>(intent: &Intent<'a>) -> bool {
     println!("essential judge the intent: {}", intent.get_description());
     
     // in essential part, all rule's will be hard coded, here.
     // essential rules will never be expired.
     // other than changing the code, user can't not change the rules.
-    risk_judge(intent) && privilege_judge(intent) // && ...
+    risk_judge(intent).await && privilege_judge(intent).await // && ...
 }
 
 // prevent the intent from risk users and the system.
-fn risk_judge(intent: &Intent) -> bool {
-    judge(intent, &STATIC_RULES["risk"])
+async fn risk_judge<'a>(intent: &Intent<'a>) -> bool {
+    judge(intent, &STATIC_RULES["risk"]).await
 }
 
 // judge the privilege of the intent.
-fn privilege_judge(intent: &Intent) -> bool {
-    judge(intent, &STATIC_RULES["privilege"])
+async fn privilege_judge<'a>(intent: &Intent<'a>) -> bool {
+    judge(intent, &STATIC_RULES["privilege"]).await
 }
 
 // this judge is conducted depends on intent's attributes.
-fn user_judge(intent: &Intent) -> bool {
+async fn user_judge<'a>(intent: &Intent<'a>) -> bool {
     // TODO: Maybe rule can be specified for intent type.
     for rule in iter_rules() {
-        if !judge(intent, rule) {
+        if !judge(intent, rule).await {
             return false;
         }    println!("user judge the intent: {}", intent.get_description());
 
@@ -73,10 +77,9 @@ fn user_judge(intent: &Intent) -> bool {
 }
 
 // judge the intent by user defined rule.
-fn judge(intent: &Intent, rule: &Rule) -> bool {
+async fn judge<'a>(intent: &Intent<'a>, rule: &Rule) -> bool {
     match rule.get_rule_detail() {
         RuleDetail::Source(intent_source) => intent.get_intent_source() != intent_source,
-        RuleDetail::Description(description) => intent.get_description() != description, // TODO: we should use ai to judge the description.
         RuleDetail::Time(_) => rule.is_expired(),
         RuleDetail::Weekday(weekday) => {
             let now = Local::now().date_naive().weekday();
@@ -84,7 +87,7 @@ fn judge(intent: &Intent, rule: &Rule) -> bool {
         },
         RuleDetail::UserDefined(rule_description) => {
             let prompt_content = format!("the rule description is: {}\n the intent description is: {}. If the intent conform to the rule, return true, otherwise return false.", rule_description, intent.get_description());
-            match prompt(&prompt_content).as_str() {
+            match prompt(&prompt_content).await.as_str() {
                 "true" => true,
                 "false" => false,
                 _ => false,
@@ -111,5 +114,4 @@ pub fn reject_intent(intent: &Intent) {
         },
     }
     // TODO: Maybe we should tell the source why the intent is rejected.
-
 }

@@ -7,11 +7,15 @@
 // 2. wifi
 // 3. internet
 
-use std::error::Error;
-use std::sync::mpsc::{Sender, Receiver};
-use std::sync::{Arc, Mutex};
+use std::{
+    error::Error, 
+    sync::{
+        Arc, Mutex,
+        mpsc::{Sender, Receiver}
+    }, 
+    collections::HashMap
+};
 use lazy_static::lazy_static;
-use std::collections::HashMap;
 
 use crate::base::resource::ResourceType;
 use crate::components::linkhub::{bluetooth, wifi, internet};

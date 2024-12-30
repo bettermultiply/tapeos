@@ -2,14 +2,16 @@
 // when the resource and subsystem are querying to connect, 
 // the waiter will store the information of the resource or subsystem.
 // and maintain the connection.
+use std::{
+    error::Error, 
+    sync::{
+        Mutex,
+        mpsc::{Sender, Receiver}
+    }
+};
 use lazy_static::lazy_static;
-use std::sync::Mutex;
-use std::sync::mpsc::{Sender, Receiver};
-use std::error::Error;
-use crate::components::linkhub::bluetooth;
-use crate::components::linkhub::wifi;
-use crate::components::linkhub::internet;
 use crate::base::resource::ResourceType;
+use crate::components::linkhub::{bluetooth, wifi, internet};
 
 #[allow(dead_code)]
 pub enum WaitMethod {
@@ -22,7 +24,6 @@ pub enum WaitMethod {
 
 const WAIT_METHOD: WaitMethod = WaitMethod::Bluetooth;
 
-// TODO: make TAPE a single resource instead of a vector.
 lazy_static! {
     pub static ref TAPE: Mutex<Vec<ResourceType>> = Mutex::new(Vec::new());
     pub static ref WAIT_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);

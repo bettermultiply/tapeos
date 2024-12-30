@@ -1,3 +1,5 @@
+// wait by bluetooth. And for different platform, we will implement different logic.
+
 use bluer::{
     adv::Advertisement,
     gatt::{
@@ -18,17 +20,21 @@ use tokio::{
     time::{interval, sleep},
 };
 
-use std::error::Error;
-use std::time::Duration;
-use std::collections::{HashMap, BTreeMap};
+use std::{
+    error::Error, 
+    time::Duration, 
+    collections::{HashMap, BTreeMap}
+};
 use futures::{future, pin_mut, StreamExt};
 
-use crate::base::{
-    resource::BluetoothResource,
-    intent::{Intent, IntentSource},
+use crate::{
+    base::{
+        resource::BluetoothResource,
+        intent::{Intent, IntentSource},
+    },
+    core::inxt::intent::execute_intent,
+    components::linkhub::waiter::{TAPE, WAIT_RECV}
 };
-use crate::core::inxt::intent::execute_intent;
-use crate::components::linkhub::waiter::{TAPE, WAIT_RECV};
 
 #[allow(dead_code)]
 enum Platform {

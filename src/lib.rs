@@ -15,15 +15,9 @@ pub mod core {
         }
         pub mod intent;
     }
-    pub mod comm {
-        pub mod messager;
-    }
 }
 
 pub mod components {
-    pub mod controlhub {
-        pub mod adaptor;
-    }
     pub mod linkhub {
         pub mod seeker;
         pub mod waiter;

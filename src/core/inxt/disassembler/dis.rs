@@ -1,16 +1,21 @@
 // in this file, we will implement the disassembler.
 
-use crate::{base::intent::{Intent, SubIntent}, components::linkhub::seeker::RESOURCES};
 use regex::Regex;
-use crate::tools::llmq::prompt;
-use crate::base::resource::Resource;
+use crate::{
+    base::{
+        resource::Resource,
+        intent::{Intent, SubIntent}
+    },
+    tools::llmq::prompt,
+    components::linkhub::seeker::RESOURCES
+};
 
-pub fn disassembler(intent: &mut Intent) -> Option<()> {
+pub async fn disassembler<'a>(intent: &mut Intent<'a>) -> Option<()> {
     let sub_intents: Vec<SubIntent>;
     let mut tries_count = 3;
     let mut last_outcome = "".to_string();
     loop {  
-        let rough_intent = disassemble_intent(intent.get_description(), last_outcome.as_str());
+        let rough_intent = disassemble_intent(intent.get_description(), last_outcome.as_str()).await;
         let to_parse_intent = rough_intent.clone();
         last_outcome = rough_intent.clone();
         match format_check(&to_parse_intent) {
@@ -33,7 +38,7 @@ pub fn disassembler(intent: &mut Intent) -> Option<()> {
     Some(())
 }
 
-fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
+async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
     let mut resources = String::new();
     for resource in RESOURCES.lock().unwrap().iter() {
         let r: &dyn Resource = resource.as_ref();
@@ -53,7 +58,7 @@ fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
             resources
         );
     
-    prompt(&prompt_content)
+    prompt(&prompt_content).await
 }
 
 fn format_check(rough_intent: &str) -> bool {
@@ -70,7 +75,6 @@ fn parse_rough_intent(rough_intent: String) -> Vec<SubIntent> {
     for sub_intent_pair in sub_intents_pairs {
         let sub_intent_pair = sub_intent_pair.split(":").collect::<Vec<&str>>();
         let sub_intent_name = sub_intent_pair[0].to_string();
-        // TODO: here is some problem, how can we get the corresponding resource?
         let sub_intent_resources = sub_intent_pair[1].split("/").map(|r| r.to_string()).collect::<Vec<String>>();
 
         let sub_intent = SubIntent::new(sub_intent_name, sub_intent_resources);

@@ -24,14 +24,15 @@ pub trait Resource: Send + Sync {
     fn get_status_str(&self) -> String;
     fn get_description(&self) -> &str;
     fn get_command(&self) -> &Vec<String>;
-
+    fn display_status(&self) -> String;
     fn set_type_name(&mut self, type_name: String);
     fn set_status(&mut self, status: Status);
     fn set_command(&mut self, command: Vec<String>);
     fn set_interpreter(&mut self, interpreter: PathBuf);
     fn set_description(&mut self, description: String);
 
-    fn reject_intent(&self, intent: &str);
+    fn reject_intent(&self, intent: &str) -> bluer::Result<()>;
+    fn send_intent(&self, intent: &str) -> bluer::Result<()>;
 }
 
 pub struct BluetoothResource {
@@ -123,6 +124,10 @@ impl Resource for BluetoothResource {
         &mut self.status
     }
 
+    fn display_status(&self) -> String {
+        format!("{:?}", self.status)
+    }
+
     fn get_description(&self) -> &str {
         &self.description
     }
@@ -155,11 +160,20 @@ impl Resource for BluetoothResource {
         format!("{:?}", self.status)
     }
 
-    fn reject_intent(&self, intent_description: &str) {
+    fn reject_intent(&self, intent_description: &str) -> bluer::Result<()> {
         let char = self.get_char().as_ref().unwrap();
-        let reject = "reject: ".to_string() + intent_description;
+        let reject = "Reject:".to_string() + intent_description;
         let data: Vec<u8> = reject.as_bytes().to_vec();
         char.write(&data);
+        Ok(())
+    }
+
+    fn send_intent(&self, intent_description: &str) -> bluer::Result<()> {
+        let char = self.get_char().as_ref().unwrap();
+        let intent = "Intent:".to_string() + intent_description;
+        let data: Vec<u8> = intent.as_bytes().to_vec();
+        char.write(&data);
+        Ok(())
     }
 }
 

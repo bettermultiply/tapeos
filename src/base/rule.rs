@@ -8,16 +8,18 @@ use std::{
 use chrono::Weekday;
 use crate::{
     tools::idgen::{generate_id, IdType},
-    base::intent::{IntentSource, Intent}
+    base::intent::IntentSource,
+    base::intent::Intent,
+    base::staticrule,
 };
 
-
-pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet::new());
+pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet{rules: vec![]});
 
 // judge whether to accept the intent.
 // actually rule means not to do something.
 pub enum RuleDetail {
-    Essential(fn(&Intent) -> bool),
+    Function(fn(&Intent) -> bool),
+    Prompt(String),
     Source(IntentSource), // based on the source of the intent.
     Time(Duration), // based on the time to reject the intent.
     Weekday(Weekday), // based on the weekday to reject the intent.
@@ -29,13 +31,13 @@ pub struct Rule {
     name: String,
     description: String,
     // we encourage that one Rule judge one feature of the intent.
-    rule_detail: RuleDetail,
+    detail: RuleDetail,
     valid_time: Duration,
     created_time: Instant,
 }
 
 impl Rule {
-    pub fn new(name: String, description: String, rule_detail: RuleDetail, valid_time: Duration) -> Self {
+    pub fn new(name: String, description: String, detail: RuleDetail, valid_time: Duration) -> Self {
         let mut new_id: i64;
         loop {
             new_id = generate_id(IdType::Resource);
@@ -44,7 +46,7 @@ impl Rule {
                 break;
             }
         }
-        Self { id: new_id, name, description, rule_detail, valid_time, created_time: Instant::now() }
+        Self { id: new_id, name, description, detail, valid_time, created_time: Instant::now() }
     }
 
     pub fn get_id(&self) -> i64 {
@@ -60,7 +62,7 @@ impl Rule {
     }
 
     pub fn get_rule_detail(&self) -> &RuleDetail {
-        &self.rule_detail
+        &self.detail
     }
 
     pub fn get_valid_time(&self) -> Duration {
@@ -89,10 +91,6 @@ pub struct RuleSet {
 
 impl RuleSet {
     
-    pub fn new() -> Self {
-        Self { rules: vec![] }
-    }
-    
     pub fn add_rule(&mut self, rule: Rule) {
         self.rules.push(rule);
     }
@@ -112,11 +110,13 @@ impl RuleSet {
     pub fn expire_rules(&mut self) {
         self.rules.retain(|r: &Rule| !r.is_expired() || r.id < 1000);
     }
+
+    pub fn iter_rules() -> impl Iterator<Item = &'static Rule> {
+        RULES.rules.iter()
+    }
 }
 
-pub fn iter_rules() -> impl Iterator<Item = &'static Rule> {
-    RULES.rules.iter()
-}
+
 
 pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMap::from([
     (
@@ -125,7 +125,7 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             id: 0,
             name: "risk".to_string(), 
             description: "risk".to_string(), 
-            rule_detail: RuleDetail::Essential(risk), 
+            detail: RuleDetail::Prompt(staticrule::RISK_PROMPT.to_string()), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
@@ -136,7 +136,7 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             id: 1,
             name: "privilege".to_string(), 
             description: "privilege".to_string(), 
-            rule_detail: RuleDetail::Essential(privilege), 
+            detail: RuleDetail::Prompt(staticrule::PRIVILEGE_PROMPT.to_string()), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
@@ -144,26 +144,12 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
     (
         "reject", 
         Rule {
-            id: 2,
+            id: 500,
             name: "reject".to_string(), 
             description: "reject".to_string(), 
-            rule_detail: RuleDetail::Essential(reject), 
+            detail: RuleDetail::Function(staticrule::reject), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
     ),
 ]));
-
-
-// TODO: we need to implement the rule functions.
-fn risk(intent: &Intent) -> bool {
-    intent.get_description().contains("risk")
-}
-
-fn privilege(intent: &Intent) -> bool {
-    intent.get_description().contains("sudo")
-}
-
-fn reject(intent: &Intent) -> bool {
-    intent.get_description().contains("reject")
-}

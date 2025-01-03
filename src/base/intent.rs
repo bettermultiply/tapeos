@@ -4,21 +4,31 @@ use std::sync::Arc;
 use bluer::Address;
 use crate::base::resource::{ ResourceType, Resource, find_resource };
 
+// raw intent format is "Intent:intent_description"
 // the intent struct is not used for sending between outside and inside the system.
 // it is used for internal manipulation.S
 pub struct Intent<'a> {
     description: String,
     complete: bool,
-    intent_source: IntentSource,
-    source: Option<&'a dyn Resource>,
+    source: IntentSource,
+    itype: IntentType,
+    resource: Option<&'a dyn Resource>,
     sub_intent: Vec<SubIntent>,
+    reject_reason: Option<String>,
 }
 
 #[derive(PartialEq, Eq)]
 pub enum IntentSource {
+    Tape,
     Resource,
     Subsystem,
-    Tape
+}
+
+#[derive(PartialEq, Eq)]
+pub enum IntentType {
+    Intent,
+    Response,
+    Reject,
 }
 
 pub struct SubIntent {
@@ -29,8 +39,15 @@ pub struct SubIntent {
 }
 
 impl<'a> Intent<'a> {
-    pub fn new(description: String, intent_source: IntentSource, source: Option<&'a dyn Resource>) -> Self {
-        Self { description, intent_source, complete: false, source: source, sub_intent: vec![] }
+    pub fn new(description: String, source: IntentSource, itype: IntentType, resource: Option<&'a dyn Resource>) -> Self {
+        Self { 
+            description, 
+            complete: false, 
+            source, 
+            itype, 
+            resource, 
+            sub_intent: vec![] , 
+            reject_reason: None}
     }
 
     pub fn iter_sub_intent(&mut self) -> impl Iterator<Item = &mut SubIntent> {
@@ -41,8 +58,8 @@ impl<'a> Intent<'a> {
         &self.description
     }
 
-    pub fn get_intent_source(&self) -> &IntentSource {
-        &self.intent_source
+    pub fn get_source(&self) -> &IntentSource {
+        &self.source
     }
 
     pub fn is_complete(&self) -> bool {
@@ -57,8 +74,16 @@ impl<'a> Intent<'a> {
         self.sub_intent.extend(sub_intent);
     }
 
-    pub fn get_source(&self) -> &'a dyn Resource {
-        self.source.unwrap()
+    pub fn get_resource(&self) -> Option<&'a dyn Resource> {
+        self.resource
+    }
+
+    pub fn get_reject_reason(&self) -> Option<String> {
+        self.reject_reason.clone()
+    }
+
+    pub fn get_intent_type(&self) -> &IntentType {
+        &self.itype
     }
 }
 

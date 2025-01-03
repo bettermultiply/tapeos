@@ -8,18 +8,21 @@ use crate::{
         resource::{ResourceType, Resource}
     },
     tools::llmq::prompt,
-    components::linkhub::bluetooth::seek::{receive_message, receive_response, send_intent}
+    components::linkhub::bluetooth::seek::{receive_message, receive_response}
 };
+
+const RETRY_COUNT: i32 = 3;
 
 // the distributer will distribute the sub-intents from disassembler to the corresponding resource or subsystem.
 pub async fn router<'a>(intent: &mut Intent<'a>) {
+    println!("router: Start to router intent");
     for sub_intent in intent.iter_sub_intent() {
-        let retry_count = 3;
+        let retry_count = RETRY_COUNT;
         for _ in 0..retry_count {
             let address = select_resource(&sub_intent).await;
             sub_intent.set_selected_resource(address);
             let resource = sub_intent.get_selected_resource().unwrap();
-            match send_intent(&resource, sub_intent.get_description()).await {
+            match resource.send_intent(sub_intent.get_description()) {
                 Ok(_) => (),
                 Err(_) => continue
             };
@@ -84,7 +87,7 @@ pub async fn reroute(sub_intent: &mut SubIntent) {
         let address = select_resource(&sub_intent).await;
         sub_intent.set_selected_resource(address);
         let resource = sub_intent.get_selected_resource().unwrap();
-        match send_intent(&resource, sub_intent.get_description()).await {
+        match resource.send_intent(sub_intent.get_description()) {
             Ok(_) => (),
             Err(_) => continue
         };

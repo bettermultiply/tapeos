@@ -4,10 +4,11 @@
 use crate::{
     base::intent::Intent,
     components::linkhub::bluetooth::seek::{receive_message, receive_response},
-    core::inxt::router::router::reroute
+    core::inxt::router::reroute
 };
 
 pub async fn monitor<'a>(intent: &mut Intent<'a>) {
+    println!("monitor: Start to monitor intent");
     loop {
         let mut is_finished = true;
         for sub_intent in intent.iter_sub_intent() {

@@ -20,11 +20,11 @@ use tokio::{
 use crate::{
     tools::llmq,
     base::{ 
-        intent::{IntentSource, Intent},
+        intent::{IntentSource, Intent, IntentType},
         resource::{Resource, Position, BluetoothResource}
     },
     components::linkhub::seeker::{RESOURCES, SEEK_RECV, RESPONSE_QUEUE},
-    core::inxt::intent::execute_intent
+    core::inxt::intent::handler
 };
 
 #[allow(dead_code)]
@@ -121,6 +121,7 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
                 match SEEK_RECV.lock().unwrap().as_ref().unwrap().try_recv() {
                     Ok(v) => v,
                     Err(err) => {
+                        println!("seek: receive waiter request failed: {}", &err);
                         future::pending().await
                     }
                 }
@@ -148,7 +149,7 @@ async fn check_resources() -> bluer::Result<()> {
             match key.as_str() {
                 "Intent" => {
                     let intent = receive_intent(value, resource).await?;
-                    execute_intent(intent).await;
+                    handler(intent).await;
                 }
                 "Response" => {
                     let response = receive_response(value).await?;
@@ -254,18 +255,10 @@ async fn complete_resource(blue_resource: &mut BluetoothResource) -> bluer::Resu
 }
 
 pub async fn query_status(blue_resource: &BluetoothResource) -> bluer::Result<()> {
-    send_intent(blue_resource, "query for status; query for command; query for description; query for interpreter;").await?;
-    Ok(())
+    blue_resource.send_intent("query for status; query for command; query for description; query for interpreter;")
 }
 
-pub async fn send_intent<'a>(blue_resource: &BluetoothResource, intent_description: &str) -> bluer::Result<()> {
-    let char = blue_resource.get_char().as_ref().unwrap();
-    let data: Vec<u8> = intent_description.as_bytes().to_vec();
-    char.write(&data).await?;
-    sleep(Duration::from_secs(1)).await;
 
-    Ok(())
-}
 
 pub async fn receive_message(blue_resource: &BluetoothResource) -> bluer::Result<(String, String)> {
     let char = blue_resource.get_char().as_ref().unwrap();
@@ -280,10 +273,10 @@ pub async fn receive_message(blue_resource: &BluetoothResource) -> bluer::Result
 }
 
 pub async fn receive_intent(raw_intent: String, blue_resource: &BluetoothResource) -> bluer::Result<Intent> {
-    let intent = Intent::new
-    (
+    let intent = Intent::new(
         raw_intent,
         IntentSource::Resource, 
+        IntentType::Intent,
         Some(blue_resource)
     );
 
@@ -329,7 +322,7 @@ pub async fn execute_waiter_request(request: String) {
         match key.as_str() {
             "Intent" => {
                 println!("Intent: {}", value);
-                execute_intent(Intent::new(value, IntentSource::Resource, None)).await;
+                handler(Intent::new(value, IntentSource::Resource, IntentType::Intent, None)).await;
             }
             _ => {
                 println!("Unsupported request: {}", key);

@@ -30,9 +30,9 @@ use futures::{future, pin_mut, StreamExt};
 use crate::{
     base::{
         resource::BluetoothResource,
-        intent::{Intent, IntentSource},
+        intent::{Intent, IntentSource, IntentType},
     },
-    core::inxt::intent::execute_intent,
+    core::inxt::intent::handler,
     components::linkhub::waiter::{TAPE, WAIT_RECV}
 };
 
@@ -173,6 +173,7 @@ async fn wait_bluetooth_linux() -> bluer::Result<()> {
                 match WAIT_RECV.lock().unwrap().as_ref().unwrap().try_recv() {
                     Ok(v) => v,
                     Err(err) => {
+                        println!("wait: receive waiter request failed: {}", &err);
                         future::pending().await
                     }
                 }
@@ -189,7 +190,7 @@ async fn wait_bluetooth_linux() -> bluer::Result<()> {
                     Ok(0) => {
                         println!("Write stream ended");
                         let intent = parse_to_intent(&value);
-                        execute_intent(intent).await;
+                        handler(intent).await;
                         reader_opt = None;
                     }
                     Ok(n) => {
@@ -217,7 +218,7 @@ fn check_device() {
 }
 
 fn parse_to_intent(value: &Vec<u8>) -> Intent {
-    Intent::new(String::from_utf8(value.clone()).unwrap(), IntentSource::Tape, None)
+    Intent::new(String::from_utf8(value.clone()).unwrap(), IntentSource::Tape, IntentType::Intent, None)
 }
 
 async fn execute_seeker_request(request: String) {

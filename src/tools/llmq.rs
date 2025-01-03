@@ -2,6 +2,7 @@ use async_openai::Client;
 use async_openai::types::CreateCompletionRequestArgs;
 
 pub async fn prompt(prompt: &str) -> String {
+    return "".to_string();
     // Create client
     let client = Client::new();
     // Create request using builder pattern

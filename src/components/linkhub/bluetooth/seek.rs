@@ -96,7 +96,7 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
                                 println!("    find tapeos {}", name);
                             },
                             Ok(None) => {
-                                println!("    no tapeos {}", name);
+                                println!("    no tapeos {} {}", name, addr);
                                 let _ = adapter.remove_device(addr).await;
                             },
                             Err(err) => {
@@ -121,7 +121,6 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
                 match SEEK_RECV.lock().unwrap().as_ref().unwrap().try_recv() {
                     Ok(v) => v,
                     Err(err) => {
-                        println!("seeker intent error: {}", err);
                         future::pending().await
                     }
                 }
@@ -140,7 +139,6 @@ const TAPE_CHARACTERISTIC_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00005678_00
 const RETRIES: u8 = 2;
 
 async fn check_resources() -> bluer::Result<()> {
-    println!("check resources");
     let resources = RESOURCES.lock().unwrap();
     for resource in resources.iter() {
         query_status(resource).await?;
@@ -160,6 +158,7 @@ async fn check_resources() -> bluer::Result<()> {
             }
         }
     }
+    println!("check resources {} times", resources.len());
     Ok(())
 }
 

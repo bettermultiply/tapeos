@@ -168,12 +168,11 @@ async fn wait_bluetooth_linux() -> bluer::Result<()> {
             _ = interval.tick(), if TAPE.lock().unwrap().len() > 0 => {
                 check_device();
             }
-            // handle seeker intent.
+            // handle .
             request = async {
                 match WAIT_RECV.lock().unwrap().as_ref().unwrap().try_recv() {
                     Ok(v) => v,
                     Err(err) => {
-                        println!("seeker intent error: {}", err);
                         future::pending().await
                     }
                 }

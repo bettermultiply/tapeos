@@ -39,6 +39,7 @@ pub mod components {
 pub mod tools {
     pub mod idgen;
     pub mod llmq;
+    pub mod interpreter;
 }
 
 pub mod base {

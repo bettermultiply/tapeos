@@ -1,13 +1,9 @@
 // in this file, we will implement the monitor for the intent execution.
 // the monitor will monitor the execution of the intent and provide the feedback to the higher level system.
 
-use crate::{
-    base::intent::Intent,
-    components::linkhub::bluetooth::seek::{receive_message, receive_response},
-    core::inxt::router::reroute
-};
+use crate::base::intent::Intent;
 
-pub async fn monitor<'a>(intent: &mut Intent<'a>) {
+pub async fn monitor(intent: &mut Intent) {
     println!("monitor: Start to monitor intent");
     loop {
         let mut is_finished = true;
@@ -15,20 +11,8 @@ pub async fn monitor<'a>(intent: &mut Intent<'a>) {
             if sub_intent.is_complete() {
                 continue;
             }
-            let resource = sub_intent.get_selected_resource().unwrap();
-            let (key, message) = receive_message(&resource).await.unwrap();
-            match key.as_str() {
-                "Intent" => {
-                    let response = receive_response(message).await.unwrap();
-                    if response.get("Unfinished").is_some() {
-                        reroute(sub_intent).await;
-                    } 
-                    if response.get("Finished").is_some() {
-                        is_finished = false;
-                    }
-                }
-                _ => ()
-            }
+            is_finished = false;
+
             
         }
         if is_finished {

@@ -9,8 +9,8 @@ use chrono::{Local, Datelike};
 
 use crate::{
     base::{
-        intent::{Intent, IntentSource}, resource::Resource, rule::{Rule, RuleDetail, STATIC_RULES, RuleSet}
-    }, components::linkhub::waiter::TAPE, tools::{llmq::{self, prompt}, record::record}
+        intent::{Intent, IntentSource}, rule::{Rule, RuleDetail, RuleSet, STATIC_RULES}
+    }, components::linkhub::seeker::reject_intent, tools::{llmq::{self, prompt}, record::record}
 };
 
 pub enum JudgeResult {
@@ -20,7 +20,7 @@ pub enum JudgeResult {
 }
 
 // preprocess the intent.
-pub async fn process<'a>(intent: &Intent<'a>) -> JudgeResult {
+pub async fn process(intent: &Intent) -> JudgeResult {
     println!("process: ");
     println!("process: Judge the intent: {}", intent.get_description());
     
@@ -40,7 +40,7 @@ pub async fn process<'a>(intent: &Intent<'a>) -> JudgeResult {
 }
 
 // filter the unacceptible intent.
-async fn filter<'a>(intent: &Intent<'a>) -> bool {
+async fn filter(intent: &Intent) -> bool {
     if essential_judge(intent).await || user_judge(intent).await {
         println!("filter: Essential and user judge error");
         reject(intent);
@@ -52,7 +52,7 @@ async fn filter<'a>(intent: &Intent<'a>) -> bool {
 }
 
 // special execution for the intent.
-async fn special_execution<'a>(intent: &Intent<'a>) -> bool {
+async fn special_execution(intent: &Intent) -> bool {
     println!("special execution: ");
     let special_id = STATIC_RULES["reject"].get_id();
     for rule in STATIC_RULES.values() {
@@ -70,7 +70,7 @@ async fn special_execution<'a>(intent: &Intent<'a>) -> bool {
 }
 
 // should be used to judge  every intent.
-async fn essential_judge<'a>(intent: &Intent<'a>) -> bool {
+async fn essential_judge(intent: &Intent) -> bool {
     println!("essential judge: ");
     
     // in essential part, all rule's will be hard coded.
@@ -93,7 +93,7 @@ async fn essential_judge<'a>(intent: &Intent<'a>) -> bool {
 }
 
 // this judge is conducted depends on intent's attributes.
-async fn user_judge<'a>(intent: &Intent<'a>) -> bool {
+async fn user_judge(intent: &Intent) -> bool {
     // TODO: Maybe rule can be specified for intent type.
     println!("user judge: ");
     for rule in RuleSet::iter_rules() {
@@ -113,7 +113,7 @@ async fn user_judge<'a>(intent: &Intent<'a>) -> bool {
 //} else {
 //  judge result is false then allow intent to be executed.
 //}
-async fn rule_judge<'a>(intent: &Intent<'a>, rule: &Rule) -> bool {
+async fn rule_judge(intent: &Intent, rule: &Rule) -> bool {
     match rule.get_rule_detail() {
         RuleDetail::Source(intent_source) 
             => intent.get_source() == intent_source,
@@ -156,15 +156,13 @@ pub fn reject(intent: &Intent) {
         IntentSource::Tape => {
             println!("reject: Reject Tape intent");
             
-            let _ = (TAPE.lock().unwrap()
-                .first().unwrap() as &dyn Resource)
-                .reject_intent(&response);
+            let _ = reject_intent("TAPE".to_string(), response.clone());
         },
         _ => {
             println!("reject: Reject resource intent");
             let source = intent.get_resource();
             if source.is_some() {
-                let _ = source.unwrap().reject_intent(&response);
+                let _ = reject_intent(source.unwrap().to_string(), intent.get_description().to_string());
             } else {
                 println!("No resource found, error intent");
             }

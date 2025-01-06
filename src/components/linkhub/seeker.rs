@@ -16,10 +16,11 @@ use std::{
     collections::HashMap
 };
 use lazy_static::lazy_static;
+use tokio::net::UdpSocket;
 
 use crate::components::linkhub::{bluetooth, internet, wifi};
-
-use super::{bluetooth::resource::BluetoothResource, internet::resource::InternetResource};
+use crate::base::resource::Resource;
+use super::{bluetooth::resource::BluetoothResource, internet::resource::InternetResource, waiter::{ResourceType, TAPE}};
 
 #[allow(dead_code)]
 enum SeekMethod {
@@ -48,13 +49,176 @@ pub fn channel_init(seek_send: Option<Sender<String>>, seek_recv: Option<Receive
 }
 
 // seek resources and subsystems depend on the SEEK_METHOD.
-pub fn seek() -> Result<(), Box<dyn Error>> {
+pub async fn seek() -> Result<(), Box<dyn Error>> {
     match SEEK_METHOD {
         SeekMethod::Bluetooth => bluetooth::seek::seek(),
         SeekMethod::Wifi => wifi::seek::seek(),
-        SeekMethod::Internet => internet::seek::seek(),
+        SeekMethod::Internet => internet::seek::seek().await,
         _ => {
             return Err("Unsupported seek method".into());
         }
     }
+}
+
+pub fn get_all_resource_info() -> String {
+    let mut resources_info = String::new();
+    for (_, resource) in BLUETOOTH_RESOURCES.lock().unwrap().iter() {
+        resources_info += format!("{}/{}/{};", resource.get_name(), resource.get_description(), resource.display_status()).as_str();
+    }
+    for (_, resource) in INTERNET_RESOURCES.lock().unwrap().iter() {
+        resources_info += format!("{}/{}/{};", resource.get_name(), resource.get_description(), resource.display_status()).as_str();
+    }
+
+    resources_info
+}
+
+pub fn get_resource_description(name: &str) -> String {
+    match INTERNET_RESOURCES.lock().unwrap().get(name) {
+        Some(resource) => {
+            return resource.get_description().to_string();
+        },
+        None => (),
+    }
+    match BLUETOOTH_RESOURCES.lock().unwrap().get(name) {
+        Some(resource) => {
+            return resource.get_description().to_string();
+        },
+        None => (),
+    } 
+    "".to_string()
+}
+
+pub fn get_resource_status_str(name: &str) -> String {
+    match INTERNET_RESOURCES.lock().unwrap().get(name) {
+        Some(resource) => {
+            return resource.display_status().to_string();
+        },
+        None => (),
+    }
+    match BLUETOOTH_RESOURCES.lock().unwrap().get(name) {
+        Some(resource) => {
+            return resource.display_status().to_string();
+        },
+        None => (),
+    } 
+    "".to_string()
+}
+
+// TODO
+// fn find_resource_by_name(name: &str) -> Option<Box<Arc<dyn Resource>>>{
+//     match INTERNET_RESOURCES.lock().unwrap().get(name) {
+//         Some(resource) => {
+//             return Some(Box::new(Arc::clone(resource)));
+//         },
+//         None => (),
+//     }
+//     match BLUETOOTH_RESOURCES.lock().unwrap().get(name) {
+//         Some(resource) => {
+//             let r: &dyn Resource = resource.as_ref(); 
+
+//             return Some(r);
+//         },
+//         None => (),
+//     } 
+    
+//     None
+// }
+
+pub async fn reject_intent(resource_name: String, intent: String) -> Result<(), Box<dyn Error>> {
+    match INTERNET_RESOURCES.lock().unwrap().get(&resource_name) {
+        Some(resource) => {
+            let addr = resource.get_address();
+            let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
+            let reject = "Reject:".to_string() + &intent;
+            let data: Vec<u8> = reject.as_bytes().to_vec();
+            socket.send(&data).await?;
+
+            return Ok(());
+        },
+        None => (),
+    } 
+    match BLUETOOTH_RESOURCES.lock().unwrap().get(&resource_name) {
+        Some(resource) => {
+            let char = resource.get_char().as_ref().unwrap();
+            let reject = "Reject:".to_string() + &intent;
+            let data: Vec<u8> = reject.as_bytes().to_vec();
+            char.write(&data).await?;
+            return Ok(());
+        },
+        None => (),
+    } 
+    
+    if resource_name == "TAPE" {
+        match TAPE.lock().unwrap().as_ref().unwrap() {
+            ResourceType::Bluetooth(resource) => {
+                let char = resource.get_char().as_ref().unwrap();
+                let reject = "Reject:".to_string() + &intent;
+                let data: Vec<u8> = reject.as_bytes().to_vec();
+                char.write(&data).await?;
+                return Ok(());
+            },
+            ResourceType::Internet(resource) => {
+                let addr = resource.get_address();
+                let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
+                let reject = "Reject:".to_string() + &intent;
+                let data: Vec<u8> = reject.as_bytes().to_vec();
+                socket.send(&data).await?;
+    
+                return Ok(());
+            },
+            _ => (),
+        }
+    }
+    
+    Ok(())
+}
+
+pub async fn send_intent(resource_name: String, intent: String) -> Result<(), Box<dyn Error>> {
+    match INTERNET_RESOURCES.lock().unwrap().get(&resource_name) {
+        Some(resource) => {
+            let addr = resource.get_address();
+            let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
+            let reject = "Intent:".to_string() + &intent;
+            let data: Vec<u8> = reject.as_bytes().to_vec();
+            socket.send(&data).await?;
+
+            return Ok(());
+        },
+        None => (),
+    } 
+
+    match BLUETOOTH_RESOURCES.lock().unwrap().get(&resource_name) {
+        Some(resource) => {
+            let char = resource.get_char().as_ref().unwrap();
+            let reject = "Intent:".to_string() + &intent;
+            let data: Vec<u8> = reject.as_bytes().to_vec();
+            char.write(&data).await?;
+            return Ok(());
+        },
+        None => (),
+    } 
+
+    if resource_name == "TAPE" {
+        match TAPE.lock().unwrap().as_ref().unwrap() {
+            ResourceType::Bluetooth(resource) => {
+                let char = resource.get_char().as_ref().unwrap();
+                let reject = "Intent:".to_string() + &intent;
+                let data: Vec<u8> = reject.as_bytes().to_vec();
+                char.write(&data).await?;
+                return Ok(());
+            },
+            ResourceType::Internet(resource) => {
+                let addr = resource.get_address();
+                let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
+                let reject = "Intent:".to_string() + &intent;
+                let data: Vec<u8> = reject.as_bytes().to_vec();
+                socket.send(&data).await?;
+    
+                return Ok(());
+            },
+            _ => (),
+        }
+    }
+    
+    Ok(())
 }

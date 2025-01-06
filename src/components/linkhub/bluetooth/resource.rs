@@ -61,13 +61,7 @@ impl BluetoothResource {
 #[allow(unused)]
 impl Resource for BluetoothResource {
     fn get_name(&self) -> &str {
-        for prop in self.props.iter() {
-            match prop {
-                DeviceProperty::Name(name) => return name,
-                _ => (),
-            }
-        }
-        return "";
+        &self.name
     }
 
     fn get_address(&self) -> ResourceAddress {
@@ -106,18 +100,6 @@ impl Resource for BluetoothResource {
         self.description = description;
     }
 
-    fn reject_intent(&self, intent_description: &str) {
-        let char = self.get_char().as_ref().unwrap();
-        let reject = "Reject:".to_string() + intent_description;
-        let data: Vec<u8> = reject.as_bytes().to_vec();
-        char.write(&data);
-    }
 
-    fn send_intent(&self, intent_description: &str) {
-        let char = self.get_char().as_ref().unwrap();
-        let intent = "Intent:".to_string() + intent_description;
-        let data: Vec<u8> = intent.as_bytes().to_vec();
-        char.write(&data);
-    }
 
 }

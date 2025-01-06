@@ -28,9 +28,9 @@ use std::{
 use futures::{future, pin_mut, StreamExt};
 
 use crate::{
-    base::{
-        intent::{Intent, IntentSource, IntentType}, resource::{BluetoothResource, Resource}
-    }, components::linkhub::waiter::{TAPE, WAIT_RECV}, core::inxt::intent::handler
+    base::intent::{Intent, IntentSource, IntentType},
+    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::send_intent, waiter::{ResourceType, TAPE, WAIT_RECV}},
+    core::inxt::intent::handler
 };
 
 #[allow(dead_code)]
@@ -162,7 +162,7 @@ async fn wait_bluetooth_linux() -> bluer::Result<()> {
                 }
             }
             // check device itself initiative action
-            _ = interval.tick(), if TAPE.lock().unwrap().len() > 0 => {
+            _ = interval.tick(), if TAPE.lock().unwrap().is_some() => {
                 check_device();
             }
             // handle .
@@ -224,7 +224,7 @@ async fn execute_seeker_request(request: String) {
     for (key, value) in map {
         match key.as_str() {
             "Intent" => {
-                send_intent(value).await.unwrap();
+                send_intent("TAPE".to_string(), value).await.unwrap();
             }
             _ => {
                 println!("Unsupported request: {}", key);
@@ -245,6 +245,7 @@ fn parse_request(request: String) -> HashMap<String, String> {
 }
 
 async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
+    
     let props = device.all_properties().await?;
     for service in device.services().await? {
         let uuid = service.uuid().await?;
@@ -253,12 +254,14 @@ async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
                 let uuid = cha.uuid().await?;
                 if uuid == TAPE_CHARACTERISTIC_UUID {
                     let resource = BluetoothResource::new(
+                        device.name().await?.unwrap_or_default(),
                         device,
                         props,
                         Some(service),
                         Some(cha),
-                    );
-                    TAPE.lock().unwrap().push(resource);
+                    ); 
+                    
+                    TAPE.lock().unwrap().replace(ResourceType::Bluetooth(resource));
                     return Ok(());
                 }
             }
@@ -268,20 +271,8 @@ async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
 }
 
 async fn remove_tape(address: Address) -> bluer::Result<()> {
-    TAPE.lock().unwrap().retain(|resource| resource.get_address() != address);
+    TAPE.lock().unwrap().take();
 
     println!("Device removed: {:?}", address);
-    Ok(())
-}
-
-async fn send_intent(intent: String) -> bluer::Result<()> {
-    TAPE.lock().unwrap()
-        .first().unwrap()
-        .get_char().as_ref().unwrap()
-        .write(&intent.as_bytes()
-        .to_vec())
-        .await?;
-    
-    sleep(Duration::from_secs(1)).await;
     Ok(())
 }

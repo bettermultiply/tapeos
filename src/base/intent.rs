@@ -1,7 +1,5 @@
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
-use super::resource::ResourceAddress;
-
 // raw intent format is "Intent:intent_description"
 // the intent struct is not used for sending between outside and inside the system.
 // it is used for internal manipulation.S
@@ -9,7 +7,7 @@ pub struct Intent {
     description: String,
     complete: bool,
     source: IntentSource,
-    resource: Option<ResourceAddress>,
+    resource: Option<String>,
     itype: IntentType,
     sub_intent: Vec<SubIntent>,
     reject_reason: Option<String>,
@@ -32,12 +30,12 @@ pub enum IntentType {
 pub struct SubIntent {
     description: String,
     complete: bool,
-    available_resources: Vec<ResourceAddress>,
-    selected_resource: Option<ResourceAddress>,
+    available_resources: Vec<String>,
+    selected_resource: Option<String>,
 }
 
 impl Intent {
-    pub fn new(description: String, source: IntentSource, itype: IntentType, resource: Option<ResourceAddress>) -> Self {
+    pub fn new(description: String, source: IntentSource, itype: IntentType, resource: Option<String>) -> Self {
         Self { 
             description, 
             complete: false, 
@@ -72,7 +70,7 @@ impl Intent {
         self.sub_intent.extend(sub_intent);
     }
 
-    pub fn get_resource(&self) -> Option<&ResourceAddress> {
+    pub fn get_resource(&self) -> Option<&String> {
         self.resource.as_ref()
     }
 
@@ -86,23 +84,23 @@ impl Intent {
 }
 
 impl SubIntent {
-    pub fn new(description: String, available_resources: Vec<ResourceAddress>) -> Self {
+    pub fn new(description: String, available_resources: Vec<String>) -> Self {
         Self { description, complete: false, available_resources, selected_resource: None }
     }
 
-    pub fn iter_available_resources(&self) -> impl Iterator<Item = &ResourceAddress> {
+    pub fn iter_available_resources(&self) -> impl Iterator<Item = &String> {
         self.available_resources.iter()
     }
 
-    pub fn remove_resource(&mut self, address: ResourceAddress) {
+    pub fn remove_resource(&mut self, address: String) {
         self.available_resources.retain(|r| *r != address);
     }
 
-    pub fn get_selected_resource(&self) -> Option<&ResourceAddress> {
+    pub fn get_selected_resource(&self) -> Option<&String> {
         self.selected_resource.as_ref() 
     }
 
-    pub fn set_selected_resource(&mut self, resource: ResourceAddress) {
+    pub fn set_selected_resource(&mut self, resource: String) {
         self.selected_resource = Some(resource);
     }
 
@@ -118,11 +116,11 @@ impl SubIntent {
         self.complete = true;
     }
 
-    pub fn add(&mut self, resources: Vec<ResourceAddress>) {
+    pub fn add(&mut self, resources: Vec<String>) {
         self.available_resources.extend(resources);
     }
 
-    pub fn pop(&mut self) -> ResourceAddress {
+    pub fn pop(&mut self) -> String {
         self.available_resources.pop().unwrap()
     }
     

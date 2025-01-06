@@ -1,7 +1,7 @@
 // seek by bluetooth. And for different platform, we will implement different logic.
 
 use bluer::{
-    Address, Device, AdapterEvent, 
+    Device, AdapterEvent, 
     gatt::remote::{Characteristic, Service}
 };
 use std::{
@@ -9,7 +9,6 @@ use std::{
     time::Duration, 
     error::Error, 
     sync::Arc, 
-    path::PathBuf
 };
 use futures::{pin_mut, StreamExt, future};
 use tokio::{
@@ -18,14 +17,10 @@ use tokio::{
 };
 
 use crate::{
-    tools::llmq,
     base::{ 
-        intent::{IntentSource, Intent, IntentType},
-        resource::{Resource, Position}
-    },
-    components::linkhub::bluetooth::resource::BluetoothResource,
-    components::linkhub::seeker::{SEEK_RECV, RESPONSE_QUEUE},
-    core::inxt::intent::handler
+        intent::{Intent, IntentSource, IntentType},
+        resource::{Interpreter, Position, Resource}
+    }, components::linkhub::{bluetooth::resource::BluetoothResource, seeker::{send_intent, BLUETOOTH_RESOURCES, RESPONSE_QUEUE, SEEK_RECV}}, core::inxt::intent::handler, tools::llmq
 };
 
 #[allow(dead_code)]
@@ -107,7 +102,9 @@ async fn seek_bluetooth_linux() -> bluer::Result<()> {
                         }
                     }
                     AdapterEvent::DeviceRemoved(addr) => {
-                        remove_resource(addr);
+                        let device = adapter.device(addr)?;
+                        let name = device.name().await?.unwrap_or_default();
+                        remove_resource(name);
                         println!("Device removed: {addr}");
                     }
                     _ => (),
@@ -141,9 +138,9 @@ const TAPE_CHARACTERISTIC_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00005678_00
 const RETRIES: u8 = 2;
 
 async fn check_resources() -> bluer::Result<()> {
-    let resources = RESOURCES.lock().unwrap();
-    for resource in resources.iter() {
-        query_status(resource).await?;
+    let resources = BLUETOOTH_RESOURCES.lock().unwrap();
+    for (_, resource) in resources.iter() {
+        let _ = query_status(resource.get_name()).await;
         let char = resource.get_char().as_ref().unwrap();
         if char.flags().await?.read {
             let (key, value) = receive_message(resource).await?;
@@ -209,24 +206,26 @@ async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result
 // create new resource and store the bluetooth device properties into the resource pool
 async fn store_resource(device: Device, cha: Characteristic, service: Service) -> bluer::Result<()> {
     let props = device.all_properties().await?;
+    let name = device.name().await?.unwrap_or_default();
     let mut resource = BluetoothResource::new(
+        name.clone(),
         device,
         props,
         Some(service),
         Some(cha),
     );
     complete_resource(&mut resource).await?;
-    RESOURCES.lock().unwrap().push(Arc::new(resource));
+    BLUETOOTH_RESOURCES.lock().unwrap().insert(name, Arc::new(resource));
     Ok(())
 }
 
-fn remove_resource(addr: Address) {
-    RESOURCES.lock().unwrap().retain(|resource| !resource.compare_address(addr));
+fn remove_resource(name: String) {
+    BLUETOOTH_RESOURCES.lock().unwrap().remove(&name);
 }
 
 // complete the resource by the resource pool
 async fn complete_resource(blue_resource: &mut BluetoothResource) -> bluer::Result<()> {
-    query_status(blue_resource).await?;
+    let _ = query_status(blue_resource.get_name()).await;
     let value: String;
     loop {
         let (k, v) = receive_message(blue_resource).await?;
@@ -250,16 +249,14 @@ async fn complete_resource(blue_resource: &mut BluetoothResource) -> bluer::Resu
     }
     resource.set_command(response.get("command").unwrap().to_owned().split(':').map(|s| s.to_string()).collect());
     resource.set_description(response.get("description").unwrap().to_owned());
-    let path = response.get("interpreter").unwrap().to_owned();
-    resource.set_interpreter(PathBuf::from(path));
+    resource.set_interpreter(Interpreter::LLM);
     Ok(())
 }
 
-pub async fn query_status(blue_resource: &BluetoothResource) -> bluer::Result<()> {
-    blue_resource.send_intent("query for status; query for command; query for description; query for interpreter;")
+pub async fn query_status(resource: &str) -> Result<(), Box<dyn Error>> {
+    send_intent(resource.to_string(), "query for status; query for command; query for description; query for interpreter;".to_string()).await?;
+    Ok(())
 }
-
-
 
 pub async fn receive_message(blue_resource: &BluetoothResource) -> bluer::Result<(String, String)> {
     let char = blue_resource.get_char().as_ref().unwrap();
@@ -278,7 +275,7 @@ pub async fn receive_intent(raw_intent: String, blue_resource: &BluetoothResourc
         raw_intent,
         IntentSource::Resource, 
         IntentType::Intent,
-        Some(blue_resource)
+        Some(blue_resource.get_name().to_string())
     );
 
     Ok(intent)
@@ -289,15 +286,7 @@ pub async fn receive_response(response: String) -> bluer::Result<HashMap<String,
     Ok(parsed)
 }
 
-pub async fn reject_intent<'a>(blue_resource: &BluetoothResource, intent: Intent<'a>) -> bluer::Result<()> {
-    let char = blue_resource.get_char().as_ref().unwrap();
-    let reject = "reject: ".to_string() + intent.get_description();
-    let data: Vec<u8> = reject.as_bytes().to_vec();
-    char.write(&data).await?;
-    
-    drop(intent);
-    Ok(())
-}
+
 
 // try to parse the response from untape resource
 async fn try_parse_response(data: String) -> HashMap<String, String> {

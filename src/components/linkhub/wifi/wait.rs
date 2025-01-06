@@ -1,7 +1,5 @@
 use std::error::Error;
 
-const TAPE_ADDRESS: &str = "0.0.0.0:8888";
-
 pub fn wait() -> Result<(), Box<dyn Error>> {
     
     // TODO:

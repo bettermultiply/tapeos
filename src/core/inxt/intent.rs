@@ -1,7 +1,7 @@
 // in this file, we will implement the whole intent execution.
 
 use crate::{
-    base::{intent::Intent, resource::Resource}, components::linkhub::waiter::TAPE, core::inxt::{
+    base::intent::Intent, components::linkhub::seeker::reject_intent, core::inxt::{
         disassembler::disassembler, monitor::monitor, preprocess::{process, JudgeResult}, router::router, schedule::schedule_intent
     }
 };
@@ -11,7 +11,7 @@ use std::error::Error;
 // this function is used to execute the intent.
 // it connect the whole inxt process.
 // consists of filter, disassembler, router, verifier, monitor.
-pub async fn handler<'a>(mut intent: Intent<'a>) {
+pub async fn handler(mut intent: Intent) {
     println!("handler: ");
     println!("handler: Start to execute intent");
 
@@ -35,7 +35,7 @@ pub async fn handler<'a>(mut intent: Intent<'a>) {
                 Ok(_) => (),
                 Err(err) => {
                     println!("execute failed: {}", err);
-                    let _ = TAPE.lock().unwrap().first().unwrap().reject_intent(&intent.get_description());
+                    let _ = reject_intent("TAPE".to_string(), intent.get_description().to_string());
                 }
             }
             return;
@@ -54,7 +54,7 @@ pub async fn handler<'a>(mut intent: Intent<'a>) {
 }
 
 // execute is used to execute the intent route to itself.
-pub fn execute<'a>(intent: &Intent<'a>) -> Result<(), Box<dyn Error>> {
+pub fn execute(intent: &Intent) -> Result<(), Box<dyn Error>> {
     println!("execute: ");
     println!("execute: Start to execute intent");
     // TODO:

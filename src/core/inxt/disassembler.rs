@@ -2,15 +2,11 @@
 
 use regex::Regex;
 use crate::{
-    base::{
-        resource::Resource,
-        intent::{Intent, SubIntent}
-    },
-    tools::llmq::prompt,
-    components::linkhub::seeker::RESOURCES
+    base::intent::{Intent, SubIntent}
+    , components::linkhub::seeker::get_all_resource_info, tools::llmq::prompt
 };
 
-pub async fn disassembler<'a>(intent: &mut Intent<'a>) -> Option<()> {
+pub async fn disassembler(intent: &mut Intent) -> Option<()> {
     println!("disassembler: Start to disassemble intent");
     let sub_intents: Vec<SubIntent>;
     let mut tries_count = 3;
@@ -49,11 +45,8 @@ pub async fn disassembler<'a>(intent: &mut Intent<'a>) -> Option<()> {
 }
 
 async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
-    let mut resources = String::new();
-    for resource in RESOURCES.lock().unwrap().iter() {
-        let r: &dyn Resource = resource.as_ref();
-        resources += format!("{}/{}/{};", r.get_type_name(), r.get_description(), r.display_status()).as_str();
-    }
+    let resource_info = get_all_resource_info();
+    
     let prompt_content = 
         format!(
 "Intent: {}
@@ -70,7 +63,7 @@ If the intent cannot be implemented with the given resources, return None. Do no
             // ",
             intent,
             last_outcome,
-            resources
+            resource_info
         );
     
     prompt(&prompt_content).await

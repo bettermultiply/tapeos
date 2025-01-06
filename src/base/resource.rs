@@ -5,7 +5,7 @@
 use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
 use bluer::Address;
-use std::error::Error;
+use serde::{Deserialize, Serialize};
 
 
 // resource is a physical or virtual device(including human and software), 
@@ -39,9 +39,6 @@ pub trait Resource: Send + Sync {
     fn set_interpreter(&mut self, interpreter: Interpreter);
     fn set_description(&mut self, description: String);
 
-    fn reject_intent(&self, intent: &str);
-    fn send_intent(&self, intent: &str);
-
 }
 
 #[derive(PartialEq, Eq)]
@@ -51,13 +48,14 @@ pub enum ResourceAddress {
     Internet(SocketAddr),
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum Interpreter {
     PathBuf(PathBuf),
-    Function(fn(intent: &str) -> Result<(), Box<dyn Error>>),
+    LLM,
 }
 
 // Status is unique for each resource. However, there are some common statuses.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Status {
     // aviliability shows the resource is available or not.
     aviliability: bool,
@@ -96,7 +94,7 @@ impl Status {
 
 // position is a common field for all resources.
 // it is a 3D vector, which can be used to describe the position of the resource.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 #[allow(unused)]
 pub struct Position {
     x: f32,

@@ -1,7 +1,9 @@
 use std::net::SocketAddr;
 
 use crate::base::resource::{Interpreter, Resource, ResourceAddress, Status};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct InternetResource {
     name: String,
     description: String,
@@ -9,6 +11,13 @@ pub struct InternetResource {
     status: Status,
     command: Vec<String>,
     interpreter: Interpreter,
+}
+
+impl InternetResource {
+
+    pub fn get_address(&self) -> &SocketAddr {
+        &self.address
+    }
 }
 
 impl Resource for InternetResource {
@@ -51,12 +60,4 @@ impl Resource for InternetResource {
     fn set_description(&mut self, description: String) {
         self.description = description;
     }
-
-    fn reject_intent(&self, intent_description: &str) {
-    }
-
-    fn send_intent(&self, intent_description: &str) {
-        
-    }
-
 }

@@ -2,14 +2,11 @@
 // and provide the interface for other components to access and update the 
 // information.
 
-use std::{path::PathBuf, time::Duration, sync::Arc};
-use bluer::{
-    Address, Device, DeviceProperty, 
-    gatt::remote::{Characteristic, Service}
-};
-use crate::components::linkhub::seeker::RESOURCES;
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
-pub type ResourceType = BluetoothResource;
+use bluer::Address;
+use std::error::Error;
+
 
 // resource is a physical or virtual device(including human and software), 
 // which can be used to execute intents. However, it may not be able to 
@@ -17,164 +14,46 @@ pub type ResourceType = BluetoothResource;
 //intent and then execute it. *subsystem* is a special resource, which can 
 // process intents, which means it do not need an interpreter to interpret 
 // the intent.
+
+// we will display a virtual resource as model
+// struct Resource {
+//     name: String,
+//     type_name: String,
+//     description: String,
+//     address: ResourceAddress,
+//     status: Status,
+//     command: Vec<String>,
+//     interpreter: PathBuf,
+// }
+
 pub trait Resource: Send + Sync {
-    fn get_name(&self) -> String;
-    fn get_type_name(&self) -> &str;
-    fn get_status(&mut self) -> &mut Status;
-    fn get_status_str(&self) -> String;
+    fn get_name(&self) -> &str;
     fn get_description(&self) -> &str;
+    fn get_address(&self) -> ResourceAddress;
+    fn get_status(&mut self) -> &mut Status;
     fn get_command(&self) -> &Vec<String>;
     fn display_status(&self) -> String;
-    fn set_type_name(&mut self, type_name: String);
+
     fn set_status(&mut self, status: Status);
     fn set_command(&mut self, command: Vec<String>);
-    fn set_interpreter(&mut self, interpreter: PathBuf);
+    fn set_interpreter(&mut self, interpreter: Interpreter);
     fn set_description(&mut self, description: String);
 
-    fn reject_intent(&self, intent: &str) -> bluer::Result<()>;
-    fn send_intent(&self, intent: &str) -> bluer::Result<()>;
-}
-
-pub struct BluetoothResource {
-    // id is a unique identifier for the resource, can't be changed.
-    address: Address,
-    // different from device name, type name shows the kind of the resource.
-    type_name: String,
-    device: Device,
-    // props is the properties of the device. 
-    // although it can be get from device
-    // however, do not need async here.
-    props: Vec<DeviceProperty>,
-
-    service: Option<Service>,
-
-    char: Option<Characteristic>,
-    // status is unique for each resource.
-    status: Status,
-    // description is a brief description of the resource.
-    description: String,
-    // command is a list of commands that the resource can execute.
-    command: Vec<String>,
-    // interpreter is a trait that can be implemented by different 
-    // interpreters. For subsystems, this field is set to None.
-    interpreter: PathBuf, 
-}
-
-impl BluetoothResource {
-    pub fn new(device: Device, props: Vec<DeviceProperty>, service: Option<Service>, char: Option<Characteristic>) -> Self {
-        Self { 
-            address: device.address(),
-            type_name: "bluetooth".to_string(), 
-            device, props, service, char, 
-            status: Status {
-                aviliability: true, 
-                position: Position::new(0.0, 0.0, 0.0), 
-                busy_time: Duration::from_secs(0)
-            }, 
-            description: "".to_string(), 
-            command: Vec::new(), 
-            interpreter: PathBuf::new() 
-        }
-    }
-
-    pub fn compare_address(&self, address: Address) -> bool {
-        self.address == address
-    }
-
-    pub fn get_props(&self) -> &Vec<DeviceProperty> {
-        &self.props
-    }
-
-    pub fn get_service(&self) -> &Option<Service> {
-        &self.service
-    }
-
-    pub fn get_device(&self) -> &Device {
-        &self.device
-    }
-
-    pub async fn get_address(&self) -> Address {
-        self.device.address()
-    }
-
-    pub fn get_char(&self) -> &Option<Characteristic> {
-        &self.char
-    }
+    fn reject_intent(&self, intent: &str);
+    fn send_intent(&self, intent: &str);
 
 }
 
+#[derive(PartialEq, Eq)]
+pub enum ResourceAddress {
+    Bluetooth(Address),
+    Wifi(String),
+    Internet(SocketAddr),
+}
 
-#[allow(unused)]
-impl Resource for BluetoothResource {
-    fn get_name(&self) -> String {
-        for prop in self.props.iter() {
-            match prop {
-                DeviceProperty::Name(name) => return name.to_string(),
-                _ => (),
-            }
-        }
-        return "".to_string();
-    }
-
-    fn get_type_name(&self) -> &str {
-        &self.type_name
-    }
-
-    fn get_status(&mut self) -> &mut Status {
-        &mut self.status
-    }
-
-    fn display_status(&self) -> String {
-        format!("{:?}", self.status)
-    }
-
-    fn get_description(&self) -> &str {
-        &self.description
-    }
-
-    fn get_command(&self) -> &Vec<String> {
-        &self.command
-    }
-
-    fn set_status(&mut self, status: Status) {
-        self.status = status;
-    }
-
-    fn set_type_name(&mut self, type_name: String) {
-        self.type_name = type_name;
-    }
-
-    fn set_command(&mut self, command: Vec<String>) {
-        self.command = command;
-    }
-
-    fn set_interpreter(&mut self, interpreter: PathBuf) {
-        self.interpreter = interpreter;
-    }
-
-    fn set_description(&mut self, description: String) {
-        self.description = description;
-    }
-
-    fn get_status_str(&self) -> String {
-        format!("{:?}", self.status)
-    }
-
-    fn reject_intent(&self, intent_description: &str) -> bluer::Result<()> {
-        let char = self.get_char().as_ref().unwrap();
-        let reject = "Reject:".to_string() + intent_description;
-        let data: Vec<u8> = reject.as_bytes().to_vec();
-        char.write(&data);
-        Ok(())
-    }
-
-    fn send_intent(&self, intent_description: &str) -> bluer::Result<()> {
-        let char = self.get_char().as_ref().unwrap();
-        let intent = "Intent:".to_string() + intent_description;
-        let data: Vec<u8> = intent.as_bytes().to_vec();
-        char.write(&data);
-        Ok(())
-    }
+pub enum Interpreter {
+    PathBuf(PathBuf),
+    Function(fn(intent: &str) -> Result<(), Box<dyn Error>>),
 }
 
 // Status is unique for each resource. However, there are some common statuses.
@@ -190,8 +69,8 @@ pub struct Status {
 
 #[allow(unused)]
 impl Status {
-    pub fn new(aviliability: bool, position: Position, busy_time: Duration) -> Self {
-        Self { aviliability, position, busy_time }
+    pub fn new(aviliability: bool, position: (f32, f32, f32), busy_time: Duration) -> Self {
+        Self { aviliability, position: Position::new(position.0, position.1, position.2), busy_time }
     }
 
     fn get_aviliability(&self) -> bool {
@@ -236,13 +115,6 @@ impl Position {
     }
 }
 
-pub fn find_resource<'a>(device_name: String) -> Option<Arc<ResourceType>> {
-    let resources = RESOURCES.lock().unwrap();
-    for resource in resources.iter() {
-        let r: &dyn Resource = resource.as_ref();
-        if r.get_name() == device_name {
-            return Some(Arc::clone(resource));
-        }
-    }
-    None
-}
+// we do not need such function, instead we will use hashmap.
+// pub fn find_resource<'a>(device_name: String)
+

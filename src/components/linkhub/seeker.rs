@@ -17,8 +17,9 @@ use std::{
 };
 use lazy_static::lazy_static;
 
-use crate::base::resource::ResourceType;
-use crate::components::linkhub::{bluetooth, wifi, internet};
+use crate::components::linkhub::{bluetooth, internet, wifi};
+
+use super::{bluetooth::resource::BluetoothResource, internet::resource::InternetResource};
 
 #[allow(dead_code)]
 enum SeekMethod {
@@ -31,7 +32,11 @@ enum SeekMethod {
 
 const SEEK_METHOD: SeekMethod = SeekMethod::Bluetooth;
 lazy_static! {
-    pub static ref RESOURCES: Mutex<Vec<Arc<ResourceType>>> = Mutex::new(Vec::new());
+    // we use these resource seperately for different seeker.
+    // pub static ref RESOURCES: Mutex<Vec<Arc<ResourceType>>> = Mutex::new(Vec::new());
+    pub static ref INTERNET_RESOURCES: Mutex<HashMap<String, Arc<InternetResource>>> = Mutex::new(HashMap::new());
+    pub static ref BLUETOOTH_RESOURCES: Mutex<HashMap<String, Arc<BluetoothResource>>> = Mutex::new(HashMap::new());
+    // ...
     pub static ref RESPONSE_QUEUE: Mutex<Vec<HashMap<String, String>>> = Mutex::new(Vec::new());
     pub static ref SEEK_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref SEEK_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);

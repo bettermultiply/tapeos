@@ -29,11 +29,8 @@ use futures::{future, pin_mut, StreamExt};
 
 use crate::{
     base::{
-        resource::BluetoothResource,
-        intent::{Intent, IntentSource, IntentType},
-    },
-    core::inxt::intent::handler,
-    components::linkhub::waiter::{TAPE, WAIT_RECV}
+        intent::{Intent, IntentSource, IntentType}, resource::{BluetoothResource, Resource}
+    }, components::linkhub::waiter::{TAPE, WAIT_RECV}, core::inxt::intent::handler
 };
 
 #[allow(dead_code)]
@@ -271,7 +268,7 @@ async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
 }
 
 async fn remove_tape(address: Address) -> bluer::Result<()> {
-    TAPE.lock().unwrap().retain(|resource| !resource.compare_address(address));
+    TAPE.lock().unwrap().retain(|resource| resource.get_address() != address);
 
     println!("Device removed: {:?}", address);
     Ok(())

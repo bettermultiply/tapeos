@@ -16,6 +16,7 @@ pub mod components {
         pub mod bluetooth {
             pub mod seek;
             pub mod wait;
+            pub mod resource;
         }
         pub mod wifi {
             pub mod seek;
@@ -24,6 +25,7 @@ pub mod components {
         pub mod internet {
             pub mod seek;
             pub mod wait;
+            pub mod resource;
         }
     }
 }

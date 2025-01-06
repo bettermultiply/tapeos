@@ -21,9 +21,10 @@ use crate::{
     tools::llmq,
     base::{ 
         intent::{IntentSource, Intent, IntentType},
-        resource::{Resource, Position, BluetoothResource}
+        resource::{Resource, Position}
     },
-    components::linkhub::seeker::{RESOURCES, SEEK_RECV, RESPONSE_QUEUE},
+    components::linkhub::bluetooth::resource::BluetoothResource,
+    components::linkhub::seeker::{SEEK_RECV, RESPONSE_QUEUE},
     core::inxt::intent::handler
 };
 

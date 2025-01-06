@@ -1,18 +1,16 @@
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
-use std::sync::Arc;
-use bluer::Address;
-use crate::base::resource::{ ResourceType, Resource, find_resource };
+use super::resource::ResourceAddress;
 
 // raw intent format is "Intent:intent_description"
 // the intent struct is not used for sending between outside and inside the system.
 // it is used for internal manipulation.S
-pub struct Intent<'a> {
+pub struct Intent {
     description: String,
     complete: bool,
     source: IntentSource,
+    resource: Option<ResourceAddress>,
     itype: IntentType,
-    resource: Option<&'a dyn Resource>,
     sub_intent: Vec<SubIntent>,
     reject_reason: Option<String>,
 }
@@ -34,12 +32,12 @@ pub enum IntentType {
 pub struct SubIntent {
     description: String,
     complete: bool,
-    available_resources: Vec<Arc<ResourceType>>,
-    selected_resource: Option<Arc<ResourceType>>,
+    available_resources: Vec<ResourceAddress>,
+    selected_resource: Option<ResourceAddress>,
 }
 
-impl<'a> Intent<'a> {
-    pub fn new(description: String, source: IntentSource, itype: IntentType, resource: Option<&'a dyn Resource>) -> Self {
+impl Intent {
+    pub fn new(description: String, source: IntentSource, itype: IntentType, resource: Option<ResourceAddress>) -> Self {
         Self { 
             description, 
             complete: false, 
@@ -74,8 +72,8 @@ impl<'a> Intent<'a> {
         self.sub_intent.extend(sub_intent);
     }
 
-    pub fn get_resource(&self) -> Option<&'a dyn Resource> {
-        self.resource
+    pub fn get_resource(&self) -> Option<&ResourceAddress> {
+        self.resource.as_ref()
     }
 
     pub fn get_reject_reason(&self) -> Option<String> {
@@ -88,36 +86,24 @@ impl<'a> Intent<'a> {
 }
 
 impl SubIntent {
-    pub fn new(description: String, available_resources: Vec<String>) -> Self {
-        let available_resources: Vec<Arc<ResourceType>> = 
-            available_resources
-            .iter()
-            .map(|r| {
-                find_resource(r.to_string()).unwrap()
-            })
-            .collect();
+    pub fn new(description: String, available_resources: Vec<ResourceAddress>) -> Self {
         Self { description, complete: false, available_resources, selected_resource: None }
     }
 
-    pub fn iter_available_resources(&self) -> impl Iterator<Item = &Arc<ResourceType>> {
+    pub fn iter_available_resources(&self) -> impl Iterator<Item = &ResourceAddress> {
         self.available_resources.iter()
     }
 
-    pub fn remove_resource(&mut self, address: Address) {
-        self.available_resources.retain(|r| r.compare_address(address));
+    pub fn remove_resource(&mut self, address: ResourceAddress) {
+        self.available_resources.retain(|r| *r != address);
     }
 
-    pub fn get_selected_resource(&self) -> Option<Arc<ResourceType>> {
-        self.selected_resource.clone()
+    pub fn get_selected_resource(&self) -> Option<&ResourceAddress> {
+        self.selected_resource.as_ref() 
     }
 
-    pub fn set_selected_resource(&mut self, address: Address) {
-        for (index, r) in self.available_resources.iter().enumerate() {
-            if r.compare_address(address) {
-                self.selected_resource = Some(self.available_resources.remove(index));
-                break;
-            }
-        }
+    pub fn set_selected_resource(&mut self, resource: ResourceAddress) {
+        self.selected_resource = Some(resource);
     }
 
     pub fn get_description(&self) -> &str {
@@ -132,11 +118,11 @@ impl SubIntent {
         self.complete = true;
     }
 
-    pub fn add(&mut self, resources: Vec<Arc<ResourceType>>) {
+    pub fn add(&mut self, resources: Vec<ResourceAddress>) {
         self.available_resources.extend(resources);
     }
 
-    pub fn pop(&mut self) -> Arc<ResourceType> {
+    pub fn pop(&mut self) -> ResourceAddress {
         self.available_resources.pop().unwrap()
     }
     
@@ -144,3 +130,4 @@ impl SubIntent {
         self.available_resources.is_empty()
     }
 }
+

@@ -10,7 +10,6 @@ use std::{
     }
 };
 use lazy_static::lazy_static;
-use crate::base::resource::ResourceType;
 use crate::components::linkhub::{bluetooth, wifi, internet};
 
 #[allow(dead_code)]
@@ -46,5 +45,4 @@ pub fn wait() -> Result<(), Box<dyn Error>> {
         }
     }
 }
-
 

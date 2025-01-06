@@ -29,7 +29,7 @@ pub async fn handler<'a>(mut intent: Intent<'a>) {
     // disassemble the intent.
     match disassembler(&mut intent).await {
         Some(_) => {
-        },
+        },  
         None => {
             match execute(&intent) {
                 Ok(_) => (),

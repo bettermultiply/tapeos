@@ -38,6 +38,7 @@ pub mod tools {
 }
 
 pub mod base {
+    pub mod message;
     pub mod resource;
     pub mod rule;
     pub mod intent;

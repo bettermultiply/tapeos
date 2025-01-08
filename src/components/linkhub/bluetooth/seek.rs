@@ -247,9 +247,8 @@ async fn complete_resource(blue_resource: &mut BluetoothResource) -> bluer::Resu
             _ => (),
         }
     }
-    resource.set_command(response.get("command").unwrap().to_owned().split(':').map(|s| s.to_string()).collect());
     resource.set_description(response.get("description").unwrap().to_owned());
-    resource.set_interpreter(Interpreter::LLM);
+    resource.set_interpreter(Interpreter::LLM("HEEL".to_string()));
     Ok(())
 }
 
@@ -290,7 +289,7 @@ pub async fn receive_response(response: String) -> bluer::Result<HashMap<String,
 
 // try to parse the response from untape resource
 async fn try_parse_response(data: String) -> HashMap<String, String> {
-    let rough_parsed = llmq::prompt(&data).await;
+    let rough_parsed = llmq::prompt("try to parse the response", &data).await;
     parse_rough_response(&rough_parsed)
 }
 

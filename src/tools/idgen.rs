@@ -3,14 +3,13 @@
 
 use idgenerator::*;
 
-pub fn init_id_generator() -> Result<(), OptionError> {
+pub fn init_id_generator() {
 
     let mut options: Vec<IdGeneratorOptions> = vec![];
     for i in 0..(IdType::Len as usize) {
         options.push(IdGeneratorOptions::new().worker_id(i as u32).worker_id_bit_len(6).seq_bit_len(12));
     }
     let _ = IdVecInstance::init(options);
-    Ok(())
 }
 
 // generate the id for the given id_type

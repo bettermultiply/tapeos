@@ -54,9 +54,9 @@ async fn score(sub_intent: &str, resource: &str) -> i32 {
 
 async fn score_by_ai(sub_intent: &str, resource: &str) -> i32 {
     
-    let score = prompt(
+        
+        let score = prompt("score the resource for whether it is suitable to deal the sub-intent, return a score between 0 and 100.",
         format!("
-        score the resource for the sub-intent, return a score between 0 and 100 please.
         sub_intent: {sub_intent}
         resource: {},{}
         ",

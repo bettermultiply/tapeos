@@ -1,5 +1,8 @@
 // in this file, we will implement the whole intent execution.
 
+use log::info;
+use rand::Rng;
+
 use crate::{
     base::intent::Intent, components::linkhub::seeker::reject_intent, core::inxt::{
         disassembler::disassembler, monitor::monitor, preprocess::{process, JudgeResult}, router::router, schedule::schedule_intent
@@ -12,8 +15,7 @@ use std::error::Error;
 // it connect the whole inxt process.
 // consists of filter, disassembler, router, verifier, monitor.
 pub async fn handler(mut intent: Intent) {
-    println!("handler: ");
-    println!("handler: Start to execute intent");
+    info!("       handler: Start to execute intent");
 
     // preprocess the intent, including filter and special execution.
     match process(&intent).await {
@@ -55,8 +57,16 @@ pub async fn handler(mut intent: Intent) {
 
 // execute is used to execute the intent route to itself.
 pub fn execute(intent: &Intent) -> Result<(), Box<dyn Error>> {
-    println!("execute: ");
+    println!("execute: {}", intent.get_description());
     println!("execute: Start to execute intent");
     // TODO:
+    Ok(())
+}
+
+pub async  fn random_execute(intent: &str) -> Result<(), Box<dyn Error>> {
+    let random_sleep_duration = rand::thread_rng().gen_range(1..=intent.len()); // Random duration between 1 and 5 seconds
+    info!("intent {} ", intent);
+    info!("execute {} seconds", random_sleep_duration);
+    tokio::time::sleep(tokio::time::Duration::from_secs(random_sleep_duration as u64)).await;
     Ok(())
 }

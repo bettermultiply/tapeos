@@ -13,4 +13,5 @@ pub static PRIVILEGE_PROMPT: &str = "
 
 pub fn reject(intent: &Intent) -> bool {
     intent.get_intent_type() == &IntentType::Reject
+    
 }

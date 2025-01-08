@@ -47,17 +47,20 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
 async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
     let resource_info = get_all_resource_info();
     
-    let prompt_content = 
+    let s_prompt = 
+"I'll give you some information about Intent, Last Outcome(which is wrong or error format) and Available Resources.
+Resources is in format: `type_name/description/status`, and will have format: `type_name/description/status`,
+Disassemble the intent into sub-intents based on the available resources. Use the following format for output:
+sub-intent_1:available_device_1/available_device_2/.../available_device_n;sub-intent_2:available_device_1/available_device_2/.../available_device_m;...;sub-intent_n:available_device_1/available_device_2/.../available_device_k;
+
+Remember that we just want to use the resource to deal with the intent and do not do duplicate things, and we do not sub-intent with device name.
+If the intent cannot be implemented with the given resources, return None. Do not output any additional information.";
+
+    let u_prompt = 
         format!(
 "Intent: {}
 Last Outcome: {}
-Available Resources: {}
-
-Resources is in format: `type_name/description/status`, and will have format: `type_name/description/status`,
-Disassemble the intent into sub-intents based on the available resources. Use the following format for output:
-1_sub-intent:available_device_1/available_device_2/.../available_device_n;2_sub-intent:available_device_1/available_device_2/.../available_device_m;...;n_sub-intent:available_device_1/available_device_2/.../available_device_k;
-
-If the intent cannot be implemented with the given resources, return None. Do not output any additional information.",
+Available Resources: {}",
             // "
             //     the intent is: `{}`\n and the last outcome is: `{}`\n your last outcome maybe in wrong format, disassemble again and try to fix it.and we have some resources can be used to execute the intent, and will have format: `type_name/description/status`, they are: `{}`\nplease disassemble the intent into sub-intents based on resources.and use the format: `1_sub-intent:available_device_1/available_device_2/.../available_device_n;2_sub-intent:available_device_1/available_device_2/.../available_device_m;...;n_sub-intent:available_device_1/available_device_2/.../available_device_z;` for output.\nIt is essential that if you do not think it is ok to implement the intent with these resources, please return `None`.And don't output anyother information.
             // ",
@@ -66,7 +69,7 @@ If the intent cannot be implemented with the given resources, return None. Do no
             resource_info
         );
     
-    prompt(&prompt_content).await
+    prompt(s_prompt, &u_prompt).await
 }
 
 fn format_check(rough_intent: &str) -> bool {

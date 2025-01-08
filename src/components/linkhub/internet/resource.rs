@@ -9,11 +9,15 @@ pub struct InternetResource {
     description: String,
     address: SocketAddr,
     status: Status,
-    command: Vec<String>,
     interpreter: Interpreter,
 }
 
 impl InternetResource {
+    pub fn new(name: String, description: String, address: SocketAddr, status: Status) -> Self {
+        Self {
+            name, description, address, status, interpreter: Interpreter::Unknow
+        }
+    }
 
     pub fn get_address(&self) -> &SocketAddr {
         &self.address
@@ -37,10 +41,6 @@ impl Resource for InternetResource {
         &self.description
     }
 
-    fn get_command(&self) -> &Vec<String> {
-        &self.command
-    }
-
     fn display_status(&self) -> String {
         format!("{:?}", self.status)
     }
@@ -48,10 +48,6 @@ impl Resource for InternetResource {
     fn set_status(&mut self, status: Status) {
         self.status = status;
     }
-
-    fn set_command(&mut self, command: Vec<String>) {
-        self.command = command;
-    }   
 
     fn set_interpreter(&mut self, interpreter: Interpreter) {
         self.interpreter = interpreter;

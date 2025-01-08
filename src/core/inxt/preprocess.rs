@@ -6,11 +6,12 @@
 //         ->special_execution            => rule_judge
 //         ->reject
 use chrono::{Local, Datelike};
+use log::info;
 
 use crate::{
     base::{
         intent::{Intent, IntentSource}, rule::{Rule, RuleDetail, RuleSet, STATIC_RULES}
-    }, components::linkhub::seeker::reject_intent, tools::{llmq::{self, prompt}, record::record}
+    }, components::linkhub::seeker::reject_intent, tools::{llmq::prompt, record::record}
 };
 
 pub enum JudgeResult {
@@ -124,23 +125,27 @@ async fn rule_judge(intent: &Intent, rule: &Rule) -> bool {
             now == *weekday
         },
         RuleDetail::UserDefined(rule_description) => {
-            let prompt_content = format!("the rule description is: {}\n the intent description is: {}. If the intent conform to the rule, return true, otherwise return false.", rule_description, intent.get_description());
-            match prompt(&prompt_content).await.as_str() {
+            let prompt_content = format!("the rule description is: {}\n the intent description is: {}.", rule_description, intent.get_description());
+            let outcome = match prompt("If the intent conform to the rule, return true, otherwise return false. do not ouput dot or any other things",&prompt_content).await.as_str() {
                 "true" => true,
                 "false" => false,
                 _ => false,
-            }
+            };
+            info!("{outcome}");
+            outcome
         },
         RuleDetail::Function(rule_func) => {
             rule_func(intent)
         }, 
         RuleDetail::Prompt(prompt_content) => {
-            let prompt = format!("{} {}", prompt_content, intent.get_description());
-            match llmq::prompt(&prompt).await.as_str() {
+            let prompt_content = format!("{} {}", prompt_content, intent.get_description());
+            let outcome = match prompt("",&prompt_content).await.as_str() {
                 "true" => true,
                 "false" => false,
                 _ => false,
-            }
+            };
+            info!("{outcome}");
+            outcome
         },
     }
 }

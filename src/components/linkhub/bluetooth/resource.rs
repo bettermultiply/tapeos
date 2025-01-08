@@ -10,7 +10,6 @@ pub struct BluetoothResource {
     description: String,
     address: Address,
     status: Status,
-    command: Vec<String>,
     interpreter: Interpreter, 
 
 
@@ -30,7 +29,6 @@ impl BluetoothResource {
             device, props, service, char, 
             status: Status::new(true, (0.0, 0.0, 0.0), Duration::from_secs(0)), 
             description: "".to_string(), 
-            command: Vec::new(), 
             interpreter: Interpreter::PathBuf(PathBuf::new()), 
         }
     }
@@ -80,16 +78,8 @@ impl Resource for BluetoothResource {
         &self.description
     }
 
-    fn get_command(&self) -> &Vec<String> {
-        &self.command
-    }
-
     fn set_status(&mut self, status: Status) {
         self.status = status;
-    }
-
-    fn set_command(&mut self, command: Vec<String>) {
-        self.command = command;
     }
 
     fn set_interpreter(&mut self, interpreter: Interpreter) {
@@ -99,7 +89,5 @@ impl Resource for BluetoothResource {
     fn set_description(&mut self, description: String) {
         self.description = description;
     }
-
-
 
 }

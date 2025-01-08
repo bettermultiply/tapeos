@@ -31,11 +31,9 @@ pub trait Resource: Send + Sync {
     fn get_description(&self) -> &str;
     fn get_address(&self) -> ResourceAddress;
     fn get_status(&mut self) -> &mut Status;
-    fn get_command(&self) -> &Vec<String>;
     fn display_status(&self) -> String;
 
     fn set_status(&mut self, status: Status);
-    fn set_command(&mut self, command: Vec<String>);
     fn set_interpreter(&mut self, interpreter: Interpreter);
     fn set_description(&mut self, description: String);
 
@@ -51,7 +49,8 @@ pub enum ResourceAddress {
 #[derive(Serialize, Deserialize)]
 pub enum Interpreter {
     PathBuf(PathBuf),
-    LLM,
+    LLM(String),
+    Unknow,
 }
 
 // Status is unique for each resource. However, there are some common statuses.

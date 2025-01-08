@@ -31,7 +31,7 @@ enum SeekMethod {
     NFC,
 }
 
-const SEEK_METHOD: SeekMethod = SeekMethod::Bluetooth;
+const SEEK_METHOD: SeekMethod = SeekMethod::Internet;
 lazy_static! {
     // we use these resource seperately for different seeker.
     // pub static ref RESOURCES: Mutex<Vec<Arc<ResourceType>>> = Mutex::new(Vec::new());
@@ -148,7 +148,7 @@ pub async fn reject_intent(resource_name: String, intent: String) -> Result<(), 
         None => (),
     } 
     
-    if resource_name == "TAPE" {
+    if resource_name == "TAPE" && TAPE.lock().unwrap().is_some() {
         match TAPE.lock().unwrap().as_ref().unwrap() {
             ResourceType::Bluetooth(resource) => {
                 let char = resource.get_char().as_ref().unwrap();
@@ -198,7 +198,7 @@ pub async fn send_intent(resource_name: String, intent: String) -> Result<(), Bo
         None => (),
     } 
 
-    if resource_name == "TAPE" {
+    if resource_name == "TAPE" && TAPE.lock().unwrap().is_some() {
         match TAPE.lock().unwrap().as_ref().unwrap() {
             ResourceType::Bluetooth(resource) => {
                 let char = resource.get_char().as_ref().unwrap();

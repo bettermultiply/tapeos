@@ -1,26 +1,29 @@
-use async_openai::Client;
-use async_openai::types::CreateCompletionRequestArgs;
+use deepseek_api_client::{
+    chat_completion, chat_completion_sync, get_response_text, Message
+};
+use log::info;
 
-pub async fn prompt(prompt: &str) -> String {
-    return "".to_string();
-    // Create client
-    let client = Client::new();
-    // Create request using builder pattern
-    // Every request struct has companion builder struct with same name + Args suffix
-    let request = CreateCompletionRequestArgs::default()
-        .model("gpt-3.5-turbo-instruct")
-        .prompt(prompt)
-        .max_tokens(40_u32)
-        .build()
-        .unwrap();
-   
-    // Call API
-    let response = client
-        .completions()      // Get the API "group" (completions, images, etc.) from the client
-        .create(request)    // Make the API call in that "group"
-        .await
-        .unwrap();
-    
-    let response_txt = response.choices.first().unwrap().text.clone();
-    response_txt
+const API_KEY: &str = "sk-022b0b782c2849f4a37ff736374825bd";
+
+pub async fn prompt(s_prompt: &str, u_prompt: &str) -> String {
+
+    let mut llm_completion = chat_completion(API_KEY) ;
+
+    let messages = vec![
+        Message {
+            role: "system".to_owned(),
+            content: s_prompt.to_string(),
+        },
+        Message {
+            role: "user".to_owned(),
+            content: u_prompt.to_string(),
+        },
+    ]; 
+
+    let res = llm_completion(messages).await;
+    let res_text = get_response_text(&res.unwrap(), 0);
+    info!("{}", res_text.as_ref().unwrap());
+    res_text.unwrap()
 }
+
+// key sk-022b0b782c2849f4a37ff736374825bd

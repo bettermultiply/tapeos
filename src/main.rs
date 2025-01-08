@@ -37,12 +37,12 @@ async fn main() {
 }
 
 async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dyn Error>>{
-    info!("start to send intent");
     
     let (socket, tape, tape_clone)=send_register(name, desc, port).await?;
     
     loop {
-        match send_message(&socket, &tape_clone, "store my name: BM", None) {
+        
+        match send_message(&socket, &tape_clone, Message::new(MessageType::Intent, "store my name: BM".to_string(), None)) {
             Err(_e) => continue,
             _ => (),
         }
@@ -51,13 +51,14 @@ async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dy
                 Ok(0) => {break},
                 _ => (),
             }
+            // info!("Input didnt get info");
             sleep(time::Duration::from_secs(1));
         }
+        break;
     }
-
+    info!("Input Over");
+    Ok(())
 }
-
-
 
 async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn Error>>{
     
@@ -74,13 +75,16 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                 match m.get_type() {
                     MessageType::Heartbeat => heart_beat_report(&socket, &tape).await?,
                     MessageType::Intent => {
-                        random_execute(&m.get_body()).await?;
+                    random_execute(&m.get_body()).await?;
                         loop {
-                            match send_message(&socket, &tape_clone, "", m.get_id()) {
+                            let m = Message::new(MessageType::Response, "Over".to_string(), None);
+                            // let m = Message::new(MessageType::Response, "".to_string(), m.get_id());
+                            
+                            match send_message(&socket, &tape_clone, m) {
                                 Err(_e) => continue,
                                 _ => (),
                             }
-                            
+                            info!("wait for success");
                             match recv_message(&socket, &tape, "Intent finish report successfully").await {
                                 Ok(0) => {break},
                                 _ => (),
@@ -92,7 +96,7 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                 }    
             },
             Err(e) => {
-                warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
+                // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
                 sleep(time::Duration::from_secs(1));
             },
         }
@@ -127,19 +131,18 @@ fn parse_message(v: &[u8]) -> Message {
     }
 }
 
-fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, content: &str, id: Option<i64>) -> Result<u8, Box<dyn Error>> {
+fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: Message) -> Result<u8, Box<dyn Error>> {
 
-    let intent = content.to_string();
-    let m = Message::new(MessageType::Intent, intent, id);
     let m_json = serde_json::to_string(&m)?;
 
     match socket.try_send_to(&m_json.as_bytes().to_vec(), *tape_clone) {
         Ok(r) => {
-            info!("send message successfully: {}", r);
+            info!("send message successfully: {}, {}", tape_clone.port(), m_json);
+            sleep(time::Duration::from_secs(1));
         },
         Err(e) => {
-            warn!("Failed send to {}: {}, retry later", TAPE_ADDRESS, e);
-            sleep(time::Duration::from_micros(10));
+            // warn!("Failed send to {}: {}, retry later", TAPE_ADDRESS, e);
+            sleep(time::Duration::from_secs(1));
             return Err(Box::new(e));
         }
     }
@@ -150,13 +153,11 @@ fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, content: &str, id: 
 async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSocket, SocketAddr, SocketAddr), Box<dyn Error>> {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
-    info!("socket binded");
 
     let status = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));
     let resource = InternetResource::new(name, desc, addr, status);
     let r_json = serde_json::to_string(&resource)?;
 
-    info!("start to send message");
     let tape_clone = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
     let tape = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8889);
     
@@ -170,9 +171,9 @@ async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSock
             },
             Err(e) => {
                 warn!("Failed to register to {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_secs(1));
             }
         }
+        sleep(time::Duration::from_secs(2));
         let mut buf = [0; 1024];
         match socket.try_recv_from(&mut buf) {
             Ok((amt, src)) => {
@@ -186,7 +187,7 @@ async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSock
                 }
             },
             Err(e) => {
-                warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
+                // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
                 sleep(time::Duration::from_secs(1));
             },
                 
@@ -201,22 +202,30 @@ async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> R
     let mut buf = [0; 1024];
     match socket.try_recv_from(&mut buf) {
         Ok((amt, src)) => {
-            if src != *tape { return Ok(1); }
+            if src != *tape {warn!("source error");  return Ok(1); }
 
             let m: Message = parse_message(&buf[..amt]);
             match *m.get_type() {
                 MessageType::Heartbeat => {heart_beat_report(&socket, &tape).await?;}
                 MessageType::Response => {
-                    info!("{content}: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
-                    return Ok(0);
-                }
+                    if m.get_body() == "Success" {
+                        info!("{content}: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
+                        println!(">>>>>>>>>>>>intent : {}", m.get_body());
+                        return Ok(0);
+                    } else {
+                        println!("<<<<<<<<<<<<intent : {}", m.get_body());
+                    }
+                },
+                MessageType::Intent => {
+                    warn!("last work haven't over: {}", m.get_body());
+                },
                 _ => {
                     warn!("do not support such type: {}", m.get_body());
                 },
             }
         },
         Err(e) => {
-            warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
+            // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e); 
             sleep(time::Duration::from_secs(1));
         },
     }

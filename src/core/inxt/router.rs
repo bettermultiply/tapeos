@@ -1,6 +1,9 @@
 // in this file, we will implement the router for the intent execution.
 // the router will distribute the intent to the corresponding resource or subsystem.
 
+use core::time;
+use std::thread::sleep;
+
 use crate::{
     base::intent::{Intent, SubIntent}, 
     components::linkhub::seeker::{get_resource_description, get_resource_status_str, send_intent}, 
@@ -19,7 +22,10 @@ pub async fn router(intent: &mut Intent) {
             sub_intent.set_selected_resource(address);
             let resource = sub_intent.get_selected_resource().unwrap();
             match send_intent(resource.to_string(), sub_intent.get_description().to_string(), sub_intent.get_id()).await {
-                Ok(_) => (),
+                Ok(_) => {
+                    sleep(time::Duration::from_secs(1));
+                    break;
+                },
                 Err(_) => continue
             };
         }

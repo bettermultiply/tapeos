@@ -4,6 +4,7 @@ use std::thread::sleep;
 use futures::lock::Mutex;
 use lazy_static::lazy_static;
 use log::info;
+use log::error;
 use log::warn;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
@@ -32,18 +33,26 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
 
     let socket = UdpSocket::bind("127.0.0.1:8889").await.expect("Failed to bind to socket");
     SOCKET.lock().await.replace(socket);
-    let socket_clone = UdpSocket::bind(TAPE_ADDRESS).await.expect("Failed to bind to socket");
-
+    
     let (tx, mut rx) = mpsc::channel::<(String, SocketAddr)>(32);
-
+    
     tokio::spawn(async move {
+        let socket_clone = UdpSocket::bind(TAPE_ADDRESS).await.expect("Failed to bind to socket");
         let mut buf = [0; 1024];
         loop {
             println!("Listening on {}", TAPE_ADDRESS);
+            // let (amt, src) = match socket_clone.try_recv_from(&mut buf) {
+            //     Err(e) => {
+            //         warn!("error: {}", e);
+            //         sleep(time::Duration::from_secs(1));
+            //         continue;
+            //     },
+            //     Ok((amt, src)) => (amt, src),
+            // };
             let (amt, src) = socket_clone.recv_from(&mut buf).await.expect("Failed to receive data");
-            println!("Received {} bytes from {}", amt, src);
-
+            
             let received_data = str::from_utf8(&buf[..amt]).expect("Failed to convert to string");
+            error!("Received {} bytes from {}: {}", amt, src, received_data);
 
             if tx.send((received_data.to_string(), src)).await.is_err() {
                 println!("Failed to send message");
@@ -53,13 +62,13 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
     });
 
     // every 60 seconds, check if the socket addresses are still valid
-    let mut interval = interval(Duration::from_secs(10));
+    let mut interval = interval(Duration::from_secs(200));
 
 
     loop {
         tokio::select! {
             Some((message, src)) = rx.recv() => {
-                info!("Receive message: {}", message);
+                info!("Receive message from: {}", src);
                 // TODO: ERROR here
                 let m: Message = match serde_json::from_str(&message) {
                     Ok(m) => m,
@@ -75,9 +84,15 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                             "Intent input".to_string()
                         }
 
-                        let intent = Intent::new(m.get_body(), IntentSource::Resource, IntentType::Intent, Some(find_resource_by_addr()));
+                        let intent = Intent::new(m.get_body(),IntentSource::Resource, IntentType::Intent, Some(find_resource_by_addr()));
                         info!("get intent: {}", intent.get_description());
                         handler(intent).await;
+                        info!("handler over");
+
+                        let m = Message::new(MessageType::Response, "Success".to_string(), None);
+                        let m_json = serde_json::to_string(&m)?;
+                        SOCKET.lock().await.as_ref().unwrap().send_to(&m_json.as_bytes().to_vec(), src).await?;
+                        info!("success send to {src}");
                     },
                     MessageType::Register => {
                         match message2resource(m.get_body()) {
@@ -100,12 +115,19 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                             },
                         }
                     },
-                    MessageType::Response => {},
+                    MessageType::Response => {
+                        info!("Get Response: {}", m.get_body());
+                        // TODO: mark intent as complete.
+                        let m = Message::new(MessageType::Response, "Success".to_string(), None);
+                        let m_json = serde_json::to_string(&m)?;
+                        SOCKET.lock().await.as_ref().unwrap().send_to(&m_json.as_bytes().to_vec(), src).await?;
+                    },
                     MessageType::Reject => {},
                     _ => {
                         warn!("no such type");
                     }
                 }
+                info!("^^^^^^^^^OVER");
             }
             // heartbeat
             _ = interval.tick() => {

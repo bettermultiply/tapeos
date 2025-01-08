@@ -1,6 +1,6 @@
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
-use crate::tools::idgen;
+use crate::tools::idgen::{self, IdType};
 
 // raw intent format is "Intent:intent_description"
 // the intent struct is not used for sending between outside and inside the system.
@@ -31,6 +31,7 @@ pub enum IntentType {
 }
 
 pub struct SubIntent {
+    id: i64,
     description: String,
     complete: bool,
     available_resources: Vec<String>,
@@ -93,7 +94,11 @@ impl Intent {
 
 impl SubIntent {
     pub fn new(description: String, available_resources: Vec<String>) -> Self {
-        Self { description, complete: false, available_resources, selected_resource: None }
+        Self {id: idgen::generate_id(IdType::Intent), description, complete: false, available_resources, selected_resource: None }
+    }
+
+    pub fn get_id(&self) -> i64 {
+        self.id
     }
 
     pub fn iter_available_resources(&self) -> impl Iterator<Item = &String> {

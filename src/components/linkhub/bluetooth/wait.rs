@@ -224,7 +224,7 @@ async fn execute_seeker_request(request: String) {
     for (key, value) in map {
         match key.as_str() {
             "Intent" => {
-                send_intent("TAPE".to_string(), value).await.unwrap();
+                send_intent("TAPE".to_string(), value, 0).await.unwrap();
             }
             _ => {
                 println!("Unsupported request: {}", key);

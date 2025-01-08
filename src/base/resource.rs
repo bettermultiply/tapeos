@@ -37,6 +37,7 @@ pub trait Resource: Send + Sync {
     fn set_interpreter(&mut self, interpreter: Interpreter);
     fn set_description(&mut self, description: String);
 
+    fn is_interpreter_none(&self) -> bool;
 }
 
 #[derive(PartialEq, Eq)]
@@ -51,6 +52,7 @@ pub enum Interpreter {
     PathBuf(PathBuf),
     LLM(String),
     Unknow,
+    None,
 }
 
 // Status is unique for each resource. However, there are some common statuses.

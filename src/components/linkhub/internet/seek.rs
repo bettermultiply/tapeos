@@ -1,6 +1,8 @@
 use core::time;
 use std::error::Error;
 use std::thread::sleep;
+use futures::lock::Mutex;
+use lazy_static::lazy_static;
 use log::info;
 use log::warn;
 use tokio::net::UdpSocket;
@@ -22,11 +24,14 @@ use crate::core::inxt::intent::handler;
 use std::sync::Arc;
 
 pub const TAPE_ADDRESS: &str = "127.0.0.1:8888";
-
+lazy_static! {
+    pub static ref SOCKET: Mutex<Option<UdpSocket>> = Mutex::new(None);
+}
 
 pub async fn seek() -> Result<(), Box<dyn Error>> {
 
     let socket = UdpSocket::bind("127.0.0.1:8889").await.expect("Failed to bind to socket");
+    SOCKET.lock().await.replace(socket);
     let socket_clone = UdpSocket::bind(TAPE_ADDRESS).await.expect("Failed to bind to socket");
 
     let (tx, mut rx) = mpsc::channel::<(String, SocketAddr)>(32);
@@ -61,7 +66,7 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                     Err(e) => {
                         warn!("{:?}", e);
                         // TODO: try to parse
-                        Message::new(MessageType::Unknow, "".to_string())
+                        Message::new(MessageType::Unknow, "".to_string(), None)
                     },
                 };
                 match m.get_type() {
@@ -79,16 +84,16 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                             Ok(resource) => {
                                 let m_json = match store_resource(resource) {
                                     Some(_) => {
-                                        let m = Message::new(MessageType::Response, "Success".to_string());
+                                        let m = Message::new(MessageType::Response, "Success".to_string(), None);
                                         serde_json::to_string(&m)?
                                     },
                                     None => {
-                                        let m = Message::new(MessageType::Response, "Duplicate".to_string());
+                                        let m = Message::new(MessageType::Response, "Duplicate".to_string(), None);
                                         serde_json::to_string(&m)?
                                     },
                                 };
                                 info!("send to src: {}", src);
-                                socket.send_to(&m_json.as_bytes().to_vec(), src).await?;
+                                SOCKET.lock().await.as_ref().unwrap().send_to(&m_json.as_bytes().to_vec(), src).await?;
                             },
                             Err(e) => {
                                 warn!("{:?}", e);
@@ -109,9 +114,9 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                 let mut invalid_addrs = Vec::new();
                 for (name, resource) in INTERNET_RESOURCES.lock().unwrap().iter() {
                     let address = resource.get_address();
-                    let m = Message::new(MessageType::Heartbeat, "".to_string());
+                    let m = Message::new(MessageType::Heartbeat, "".to_string(), None);
                     let m_json = serde_json::to_string(&m)?;
-                    match socket.try_send_to(&m_json.as_bytes(), *address) {
+                    match SOCKET.lock().await.as_ref().unwrap().try_send_to(&m_json.as_bytes(), *address) {
                         Ok(_) => {
                             info!("Heartbeat sent to {}", address);
                         },
@@ -122,7 +127,7 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                     let mut retry = 3;
                     let mut heart_buf = [0; 1024];
                     loop {
-                        match socket.try_recv_from(&mut heart_buf) {
+                        match SOCKET.lock().await.as_ref().unwrap().try_recv_from(&mut heart_buf) {
                             Ok(_) => {
                                 info!("resource <{}> alive!", address);
                                 break;

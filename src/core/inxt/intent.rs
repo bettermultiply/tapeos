@@ -43,10 +43,9 @@ pub async fn handler(mut intent: Intent) {
             return;
         }
     }
+    schedule_intent(&intent);
 
     router(&mut intent).await;
-
-    schedule_intent(&intent);
 
     monitor(&mut intent).await;
 

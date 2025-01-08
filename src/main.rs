@@ -39,108 +39,17 @@ async fn main() {
 async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dyn Error>>{
     info!("start to send intent");
     
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
-    let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
-    info!("socket binded");
-
-    let status = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));
-    let resource = InternetResource::new(name, desc, addr, status);
-    let r_json = serde_json::to_string(&resource)?;
-
-    let m = Message::new(MessageType::Register, r_json);
-    let m_json = serde_json::to_string(&m)?;
-
-    info!("start to send message");
-    let tape_clone = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
-    let tape = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8889);
+    let (socket, tape, tape_clone)=send_register(name, desc, port).await?;
+    
     loop {
-        match socket.try_send_to(&m_json.as_bytes().to_vec(), tape_clone) {
-            Ok(r) => {
-                info!("send register information successfully: {}", r);
-            },
-            Err(e) => {
-                warn!("Failed to register to {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_secs(1));
-            }
+        match send_message(&socket, &tape_clone, "store my name: BM", None) {
+            Err(_e) => continue,
+            _ => (),
         }
-        let mut buf = [0; 1024];
-        match socket.try_recv_from(&mut buf) {
-            Ok((amt, src)) => {
-                if src == tape {
-                    let received_data = str::from_utf8(&buf[..amt])?;
-                        let m: Message = match serde_json::from_str(&received_data) {
-                            Ok(m) => m,
-                            Err(e) => {
-                                warn!("{:?}", e);
-                                // TODO: try to parse
-                                Message::new(MessageType::Unknow, "".to_string())
-                            },
-                        }; 
-                        if *m.get_type() == MessageType::Response && m.get_body() == "Success" {
-                            info!("intent solve successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
-                            break;
-                        }
-                }
-            },
-            Err(e) => {
-                warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_secs(1));
-            },
-                
-        }
-        sleep(time::Duration::from_secs(1));
-
-    }
-
-    let intent = "store my name: 'Betmul'".to_string();
-    let m = Message::new(MessageType::Intent, intent);
-    let m_json = serde_json::to_string(&m)?;
-
-    loop {
-        match socket.try_send_to(&m_json.as_bytes().to_vec(), tape_clone) {
-            Ok(r) => {
-                info!("send intent successfully: {}", r);
-            },
-            Err(e) => {
-                warn!("Failed to register to {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_secs(1));
-            }
-        }
-        let mut buf = [0; 1024];
         loop {
-            match socket.try_recv_from(&mut buf) {
-                Ok((amt, src)) => {
-                    if src == tape {
-                        let received_data = str::from_utf8(&buf[..amt])?;
-                        let m: Message = match serde_json::from_str(&received_data) {
-                            Ok(m) => m,
-                            Err(e) => {
-                                warn!("{:?}", e);
-                                // TODO: try to parse
-                                Message::new(MessageType::Unknow, "".to_string())
-                            },
-                        }; 
-                        match *m.get_type() {
-                            MessageType::Response => {
-                                info!("intent solve successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
-                            }
-                            MessageType::Heartbeat => {
-                                let h = Message::new(MessageType::Heartbeat, "".to_string());
-                                let h_json = serde_json::to_string(&h)?;
-                                info!("heart beat alive");
-                                socket.send_to(&h_json.as_bytes(), tape).await?;
-                            }
-                            _ => {
-                                warn!("do not support such type: {}", m.get_body());
-                            },
-                        }
-                    }
-                },
-                Err(e) => {
-                    // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
-                    sleep(time::Duration::from_secs(1));
-                },
-                
+            match recv_message(&socket, &tape, "intent solve successfully").await {
+                Ok(0) => {break},
+                _ => (),
             }
             sleep(time::Duration::from_secs(1));
         }
@@ -148,82 +57,44 @@ async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dy
 
 }
 
+
+
 async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn Error>>{
-    info!("start to regist");
     
-    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
-    let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
-    info!("socket binded");
+    let (socket, tape, tape_clone)=send_register(name, desc, port).await?;
 
-    let status = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));
-    let resource = InternetResource::new(name, desc, addr, status);
-    let r_json = serde_json::to_string(&resource)?;
-
-    let m = Message::new(MessageType::Register, r_json);
-    let m_json = serde_json::to_string(&m)?;
-
-    info!("start to send message");
-    let tape_clone = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
-    let tape = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8889);
+    let mut buf = [0; 1024];
     loop {
-        match socket.try_send_to(&m_json.as_bytes().to_vec(), tape_clone) {
-            Ok(r) => {
-                info!("send register information successfully: {}", r);
-            },
-            Err(e) => {
-                warn!("Failed to register to {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_secs(1));
-            }
-        }
-        let mut buf = [0; 1024];
+        // waiting for intent
         match socket.try_recv_from(&mut buf) {
             Ok((amt, src)) => {
-                if src == tape {
-                    info!("Register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
-                    break;
-                }
+                if src != tape { continue; }
+
+                let m: Message = parse_message(&buf[..amt]);
+                match m.get_type() {
+                    MessageType::Heartbeat => heart_beat_report(&socket, &tape).await?,
+                    MessageType::Intent => {
+                        random_execute(&m.get_body()).await?;
+                        loop {
+                            match send_message(&socket, &tape_clone, "", m.get_id()) {
+                                Err(_e) => continue,
+                                _ => (),
+                            }
+                            
+                            match recv_message(&socket, &tape, "Intent finish report successfully").await {
+                                Ok(0) => {break},
+                                _ => (),
+                            }
+                            sleep(time::Duration::from_secs(1));
+                        }
+                    },
+                    _ => { warn!("do not support such intent: {}", m.get_body()); }
+                }    
             },
             Err(e) => {
                 warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
                 sleep(time::Duration::from_secs(1));
             },
-                
-        }
-        sleep(time::Duration::from_secs(1));
-
-    }
-    let mut buf = [0; 1024];
-
-    loop {
-        // waiting for intent
-        match socket.try_recv_from(&mut buf) {
-            Ok((amt, src)) => {
-                if src == tape {
-                    let received_data = str::from_utf8(&buf[..amt]).expect("Failed to convert to string");
-                    let m: Message = match serde_json::from_str(received_data) {
-                        Ok(m) => m,
-                        Err(e) => {
-                            warn!("{:?}", e);
-                            // TODO: try to parse
-                            Message::new(MessageType::Unknow, "".to_string())
-                        },
-                    };
-                    match m.get_type() {
-                        MessageType::Intent => {
-                            random_execute(&m.get_body()).await?;
-                        },
-                        _ => {
-                            warn!("do not support such type: {}", m.get_body());
-                            return Ok(());
-                        }
-                    }
-                }
-            },
-            Err(e) => {
-                // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_secs(1));
-            },
-                
         }
     }
 }
@@ -235,6 +106,122 @@ const MONGO_DB_DESCRIPTION: &str = "MongoDB is a NoSQL database that stores data
 const GOO_GLE_DRIVE_DESCRIPTION: &str = "Google Drive is a cloud-based storage service that allows you to store, share, and access files from anywhere. It can store documents, photos, videos, and other file types, and sync them across devices. You can create and edit files using Google Workspace tools like Docs, Sheets, and Slides directly within Drive. It supports file sharing with customizable permissions, collaboration in real-time, and version history to track changes. Google Drive also provides search functionality to quickly find files and integrates with other Google services and third-party apps.";
 
 const INTENT_INPUT_DESCRIPTION: &str = "Intent Input is a device which can get intent from user, but can not reveive any intent from other ways";
+
+async fn heart_beat_report(socket: &UdpSocket, tape: &SocketAddr) -> Result<(), Box<dyn Error>>{
+    let h = Message::new(MessageType::Heartbeat, "".to_string(), None);
+    let h_json = serde_json::to_string(&h)?;
+    info!("heart beat alive");
+    socket.send_to(&h_json.as_bytes(), tape).await?;
+    Ok(())
+}
+
+fn parse_message(v: &[u8]) -> Message {
+    let received_data = str::from_utf8(v).expect("Failed to convert to string");
+    match serde_json::from_str(received_data) {
+        Ok(m) => m,
+        Err(e) => {
+            warn!("{:?}", e);
+            // TODO: try to parse
+            Message::new(MessageType::Unknow, "".to_string(), None)
+        },
+    }
+}
+
+fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, content: &str, id: Option<i64>) -> Result<u8, Box<dyn Error>> {
+
+    let intent = content.to_string();
+    let m = Message::new(MessageType::Intent, intent, id);
+    let m_json = serde_json::to_string(&m)?;
+
+    match socket.try_send_to(&m_json.as_bytes().to_vec(), *tape_clone) {
+        Ok(r) => {
+            info!("send message successfully: {}", r);
+        },
+        Err(e) => {
+            warn!("Failed send to {}: {}, retry later", TAPE_ADDRESS, e);
+            sleep(time::Duration::from_micros(10));
+            return Err(Box::new(e));
+        }
+    }
+
+    Ok(0)
+}
+
+async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSocket, SocketAddr, SocketAddr), Box<dyn Error>> {
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+    let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
+    info!("socket binded");
+
+    let status = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));
+    let resource = InternetResource::new(name, desc, addr, status);
+    let r_json = serde_json::to_string(&resource)?;
+
+    info!("start to send message");
+    let tape_clone = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
+    let tape = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8889);
+    
+    let m = Message::new(MessageType::Register, r_json, None);
+    let m_json = serde_json::to_string(&m)?;
+
+    loop {
+        match socket.try_send_to(&m_json.as_bytes().to_vec(), tape_clone) {
+            Ok(r) => {
+                info!("send register information successfully: {}", r);
+            },
+            Err(e) => {
+                warn!("Failed to register to {}: {}, retry later", TAPE_ADDRESS, e);
+                sleep(time::Duration::from_secs(1));
+            }
+        }
+        let mut buf = [0; 1024];
+        match socket.try_recv_from(&mut buf) {
+            Ok((amt, src)) => {
+                if src == tape {
+                    let m: Message = parse_message(&buf[..amt]);
+
+                    if *m.get_type() == MessageType::Response && m.get_body() == "Success" {
+                        info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
+                        break;
+                    }
+                }
+            },
+            Err(e) => {
+                warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
+                sleep(time::Duration::from_secs(1));
+            },
+                
+        }
+        sleep(time::Duration::from_secs(1));
+
+    }
+    Ok((socket, tape, tape_clone))
+}
+
+async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> Result<u8, Box<dyn Error>> {
+    let mut buf = [0; 1024];
+    match socket.try_recv_from(&mut buf) {
+        Ok((amt, src)) => {
+            if src != *tape { return Ok(1); }
+
+            let m: Message = parse_message(&buf[..amt]);
+            match *m.get_type() {
+                MessageType::Heartbeat => {heart_beat_report(&socket, &tape).await?;}
+                MessageType::Response => {
+                    info!("{content}: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
+                    return Ok(0);
+                }
+                _ => {
+                    warn!("do not support such type: {}", m.get_body());
+                },
+            }
+        },
+        Err(e) => {
+            warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
+            sleep(time::Duration::from_secs(1));
+        },
+    }
+    Ok(1)
+}
 /*use tapeos::{
     components::linkhub::{seeker, waiter},
     tools::idgen::init_id_generator

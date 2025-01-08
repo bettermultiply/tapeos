@@ -1,5 +1,6 @@
 // in this file, we will implement the disassembler.
 
+use log::info;
 use regex::Regex;
 use crate::{
     base::intent::{Intent, SubIntent}
@@ -31,7 +32,8 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
             false => {
                 tries_count -= 1;
                 if tries_count == 0 {
-                    return Some(());
+                    println!("disassembler: sub_intents error");
+                    return None;
                 }
             }
         }
@@ -39,9 +41,8 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
     if !sub_intents.is_empty() {
         intent.add_sub_intent(sub_intents);
     }
-    println!("disassembler: sub_intents error");
 
-    None
+    Some(())
 }
 
 async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
@@ -76,13 +77,15 @@ fn format_check(rough_intent: &str) -> bool {
     if rough_intent == "None" {
         return false;
     }
-    let re = Regex::new(r"(:/*;)+").unwrap();
-    re.is_match(rough_intent)
+    let re = Regex::new(r"(:*/+*;)+").unwrap();
+    let result = re.is_match(rough_intent);
+    info!("check result is {}", result);
+    result
 }
 
 fn parse_rough_intent(rough_intent: String) -> Vec<SubIntent> {
     let mut sub_intents: Vec<SubIntent> = vec![];
-    let sub_intents_pairs = rough_intent.split(";").collect::<Vec<&str>>();
+    let sub_intents_pairs = rough_intent.split(";").filter(|s| !s.is_empty()).collect::<Vec<&str>>();
     for sub_intent_pair in sub_intents_pairs {
         let sub_intent = sub_intent_pair.split(":").collect::<Vec<&str>>();
         let sub_intent_name = sub_intent[0].to_string();

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 use bluer::{
     Address, Device, DeviceProperty, 
     gatt::remote::{Characteristic, Service}
@@ -29,7 +29,7 @@ impl BluetoothResource {
             device, props, service, char, 
             status: Status::new(true, (0.0, 0.0, 0.0), Duration::from_secs(0)), 
             description: "".to_string(), 
-            interpreter: Interpreter::PathBuf(PathBuf::new()), 
+            interpreter: Interpreter::None, 
         }
     }
 
@@ -90,4 +90,10 @@ impl Resource for BluetoothResource {
         self.description = description;
     }
 
+    fn is_interpreter_none(&self) -> bool {
+        match self.interpreter {
+            Interpreter::None => {true},
+            _ => {false},
+        }
+    }
 }

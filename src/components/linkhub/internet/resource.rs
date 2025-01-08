@@ -15,7 +15,7 @@ pub struct InternetResource {
 impl InternetResource {
     pub fn new(name: String, description: String, address: SocketAddr, status: Status) -> Self {
         Self {
-            name, description, address, status, interpreter: Interpreter::Unknow
+            name, description, address, status, interpreter: Interpreter::None
         }
     }
 
@@ -55,5 +55,12 @@ impl Resource for InternetResource {
 
     fn set_description(&mut self, description: String) {
         self.description = description;
+    }
+
+    fn is_interpreter_none(&self) -> bool {
+        match self.interpreter {
+            Interpreter::None => {true},
+            _ => {false},
+        }
     }
 }

@@ -252,8 +252,9 @@ async fn complete_resource(blue_resource: &mut BluetoothResource) -> bluer::Resu
     Ok(())
 }
 
+// 0 means initial intent
 pub async fn query_status(resource: &str) -> Result<(), Box<dyn Error>> {
-    send_intent(resource.to_string(), "query for status; query for command; query for description; query for interpreter;".to_string()).await?;
+    send_intent(resource.to_string(), "query for status; query for command; query for description; query for interpreter;".to_string(), 0).await?;
     Ok(())
 }
 

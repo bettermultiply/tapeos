@@ -1,5 +1,5 @@
 use deepseek_api_client::{
-    chat_completion, chat_completion_sync, get_response_text, Message
+    chat_completion, get_response_text, Message
 };
 use log::info;
 

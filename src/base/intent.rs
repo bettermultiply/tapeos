@@ -68,7 +68,12 @@ impl Intent {
     }
 
     pub fn is_complete(&self) -> bool {
-        self.complete
+        for i in self.sub_intent.iter() {
+            if !i.is_complete() {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn complete(&mut self) {

@@ -18,7 +18,7 @@ use std::{
 use lazy_static::lazy_static;
 use log::info;
 
-use crate::{base::message::{Message, MessageType}, components::linkhub::{bluetooth, internet, wifi}};
+use crate::{base::{intent::Intent, message::{Message, MessageType}}, components::linkhub::{bluetooth, internet, wifi}};
 use crate::base::resource::Resource;
 use super::{bluetooth::resource::BluetoothResource, internet::{resource::InternetResource, seek::SOCKET}, waiter::{ResourceType, TAPE}};
 
@@ -38,6 +38,8 @@ lazy_static! {
     pub static ref INTERNET_RESOURCES: Mutex<HashMap<String, Arc<InternetResource>>> = Mutex::new(HashMap::new());
     pub static ref BLUETOOTH_RESOURCES: Mutex<HashMap<String, Arc<BluetoothResource>>> = Mutex::new(HashMap::new());
     // ...
+    pub static ref SUBINTENT_QUEUE: Mutex<Vec<Intent>> = Mutex::new(Vec::new());
+    pub static ref INTENT_QUEUE: Mutex<Vec<Intent>> = Mutex::new(Vec::new());
     pub static ref RESPONSE_QUEUE: Mutex<Vec<HashMap<String, String>>> = Mutex::new(Vec::new());
     pub static ref SEEK_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref SEEK_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
@@ -135,7 +137,7 @@ pub async fn reject_intent(resource_name: String, intent: String) -> Result<(), 
                 "Reject:".to_string() + ":" + &intent
             };
             let data: Vec<u8> = reject.as_bytes().to_vec();
-            SOCKET.lock().await.as_ref().unwrap().send_to(&data, addr).await?;
+            SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
 
             return Ok(());
         },
@@ -180,7 +182,7 @@ pub async fn reject_intent(resource_name: String, intent: String) -> Result<(), 
                     "Reject:".to_string() + ":" + &intent
                 };
                 let data: Vec<u8> = reject.as_bytes().to_vec();
-                SOCKET.lock().await.as_ref().unwrap().send_to(&data, addr).await?;
+                SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
                 return Ok(());
             },
             _ => (),
@@ -203,7 +205,7 @@ pub async fn send_intent(resource_name: String, intent: String, intent_id: i64) 
             info!("Send {} to addr: {}", &i, addr);
             let data: Vec<u8> = i.as_bytes().to_vec();
 
-            SOCKET.lock().await.as_ref().unwrap().send_to(&data, addr).await?;
+            SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
             return Ok(());
         },
         None => (),
@@ -248,7 +250,7 @@ pub async fn send_intent(resource_name: String, intent: String, intent_id: i64) 
                     "Intent:".to_string() + &intent_id.to_string() + ":" + &intent
                 };
                 let data: Vec<u8> = i.as_bytes().to_vec();
-                SOCKET.lock().await.as_ref().unwrap().send_to(&data, addr).await?;
+                SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
                 return Ok(());
             },
             _ => (),

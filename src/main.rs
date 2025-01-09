@@ -51,7 +51,7 @@ async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dy
                 Ok(0) => {break},
                 _ => (),
             }
-            // info!("Input didnt get info");
+            info!("Input didnt get info");
             sleep(time::Duration::from_secs(1));
         }
         break;
@@ -77,7 +77,7 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                     MessageType::Intent => {
                     random_execute(&m.get_body()).await?;
                         loop {
-                            let m = Message::new(MessageType::Response, "Over".to_string(), None);
+                            let m = Message::new(MessageType::Response, "Over".to_string(), m.get_id());
                             // let m = Message::new(MessageType::Response, "".to_string(), m.get_id());
                             
                             match send_message(&socket, &tape_clone, m) {
@@ -86,7 +86,10 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                             }
                             info!("wait for success");
                             match recv_message(&socket, &tape, "Intent finish report successfully").await {
-                                Ok(0) => {break},
+                                Ok(0) => {
+                                    info!("Intent finish");
+                                    break
+                                },
                                 _ => (),
                             }
                             sleep(time::Duration::from_secs(1));
@@ -95,9 +98,9 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                     _ => { warn!("do not support such intent: {}", m.get_body()); }
                 }    
             },
-            Err(e) => {
+            Err(_e) => {
                 // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_secs(1));
+                sleep(time::Duration::from_micros(1));
             },
         }
     }
@@ -136,7 +139,7 @@ fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: Message) -> Resu
     let m_json = serde_json::to_string(&m)?;
 
     match socket.try_send_to(&m_json.as_bytes().to_vec(), *tape_clone) {
-        Ok(r) => {
+        Ok(_) => {
             info!("send message successfully: {}, {}", tape_clone.port(), m_json);
             sleep(time::Duration::from_secs(1));
         },
@@ -174,26 +177,11 @@ async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSock
             }
         }
         sleep(time::Duration::from_secs(2));
-        let mut buf = [0; 1024];
-        match socket.try_recv_from(&mut buf) {
-            Ok((amt, src)) => {
-                if src == tape {
-                    let m: Message = parse_message(&buf[..amt]);
-
-                    if *m.get_type() == MessageType::Response && m.get_body() == "Success" {
-                        info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
-                        break;
-                    }
-                }
-            },
-            Err(e) => {
-                // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_secs(1));
-            },
-                
+        match recv_message(&socket, &tape, "register successfully").await {
+            Ok(0) => break,
+            _ => ()
         }
         sleep(time::Duration::from_secs(1));
-
     }
     Ok((socket, tape, tape_clone))
 }
@@ -210,10 +198,9 @@ async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> R
                 MessageType::Response => {
                     if m.get_body() == "Success" {
                         info!("{content}: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
-                        println!(">>>>>>>>>>>>intent : {}", m.get_body());
                         return Ok(0);
                     } else {
-                        println!("<<<<<<<<<<<<intent : {}", m.get_body());
+                        println!("do not support such response yet : {}", m.get_body());
                     }
                 },
                 MessageType::Intent => {
@@ -224,9 +211,9 @@ async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> R
                 },
             }
         },
-        Err(e) => {
+        Err(_e) => {
             // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e); 
-            sleep(time::Duration::from_secs(1));
+            sleep(time::Duration::from_micros(1));
         },
     }
     Ok(1)

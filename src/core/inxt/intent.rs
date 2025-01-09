@@ -5,7 +5,7 @@ use rand::Rng;
 
 use crate::{
     base::intent::Intent, components::linkhub::seeker::reject_intent, core::inxt::{
-        disassembler::disassembler, monitor::monitor, preprocess::{process, JudgeResult}, router::router, schedule::schedule_intent
+        disassembler::disassembler, preprocess::{process, JudgeResult}, router::router, schedule::schedule_intent
     }
 };
 
@@ -14,7 +14,7 @@ use std::{error::Error, thread::sleep, time};
 // this function is used to execute the intent.
 // it connect the whole inxt process.
 // consists of filter, disassembler, router, verifier, monitor.
-pub async fn handler(mut intent: Intent) {
+pub async fn handler(mut intent: &mut Intent) {
     info!("       handler: Start to execute intent");
 
     // preprocess the intent, including filter and special execution.
@@ -43,7 +43,7 @@ pub async fn handler(mut intent: Intent) {
             return;
         }
     }
-    // schedule_intent(&intent);
+    schedule_intent(&intent);
 
     router(&mut intent).await;
 
@@ -67,6 +67,6 @@ pub async  fn random_execute(intent: &str) -> Result<(), Box<dyn Error>> {
     info!("intent {} ", intent);
     info!("execute {} seconds", random_sleep_duration);
     // tokio::time::sleep(tokio::time::Duration::from_secs(random_sleep_duration as u64)).await;
-    sleep(time::Duration::from_secs(random_sleep_duration as u64));
+    sleep(time::Duration::from_secs(random_sleep_duration as u64));  
     Ok(())
 }

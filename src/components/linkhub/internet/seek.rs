@@ -4,9 +4,11 @@ use std::thread::sleep;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 use log::info;
+use log::error;
 use log::warn;
 use tokio::net::UdpSocket;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
 use std::str;
 use std::net::SocketAddr;
 use tokio::time::interval;
@@ -36,26 +38,14 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
     
     let (tx, mut rx) = mpsc::channel::<(String, SocketAddr)>(32);
     
+
     tokio::spawn(async move {
-        let socket_clone = UdpSocket::bind(TAPE_ADDRESS).await.expect("Failed to bind to socket");
-        let mut buf = [0; 1024];
-        loop {
-            println!("Listening on {}", TAPE_ADDRESS);
-
-            let (amt, src) = socket_clone.recv_from(&mut buf).await.expect("Failed to receive data");
-            
-            let received_data = str::from_utf8(&buf[..amt]).expect("Failed to convert to string");
-            info!("Received {} bytes from {}: {}", amt, src, received_data);
-
-            if tx.send((received_data.to_string(), src)).await.is_err() {
-                println!("Failed to send message");
-                break;
-            }
-        }
+        receive(tx).await;
     });
 
     // every 60 seconds, check if the socket addresses are still valid
-    let mut interval = interval(Duration::from_secs(200));
+    let mut heartbeat_inter = interval(Duration::from_secs(200));
+    // let mut reroute_inter = interval(Duration::from_secs(60));
 
 
     loop {
@@ -71,17 +61,19 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                         Message::new(MessageType::Unknow, "".to_string(), None)
                     },
                 };
+
                 match m.get_type() {
                     MessageType::Intent => {
                         fn find_resource_by_addr() -> String {
+                            
                             "Intent input".to_string()
                         }
 
-                        let mut intent = Intent::new(m.get_body(),IntentSource::Resource, IntentType::Intent, Some(find_resource_by_addr()));
+                        let mut intent = Intent::new(m.get_body(), IntentSource::Resource, IntentType::Intent, Some(find_resource_by_addr()));
                         info!("get intent: {}", intent.get_description());
                         // tokio::spawn(async {
-                            handler(&mut intent).await;
-                            INTENT_QUEUE.lock().unwrap().push(intent);
+                        handler(&mut intent).await;
+                        INTENT_QUEUE.lock().unwrap().push(intent);
                         // });
                         info!("handler over");
 
@@ -114,6 +106,7 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                     MessageType::Response => {
                         info!("Get Response: {}", m.get_body());
                         // TODO: mark intent as complete.
+                        let mut id = 0;
                         for i in INTENT_QUEUE.lock().unwrap().iter_mut() {
                             let mut c = false;
                             for ii in i.iter_sub_intent() {
@@ -123,21 +116,32 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
                             }
 
                             if c && i.is_complete() {
-                                complete_intent(i).await?;
+                                
+
+                                id = complete_intent(i).await?;
                             }
                         }
+                        INTENT_QUEUE.lock().unwrap().retain(|i| i.get_id() != id);
                         let m = Message::new(MessageType::Response, "Success".to_string(), None);
                         let m_json = serde_json::to_string(&m)?;
+                                    error!("intent <<<<< send to : {}", src);
                         SOCKET.lock().unwrap().as_ref().unwrap().send_to(&m_json.as_bytes().to_vec(), src).await?;
+                                    sleep(time::Duration::from_secs(1));
+                                    info!("Send Over: {}", m.get_body());
+
                     },
                     MessageType::Reject => {},
                     _ => {
                         warn!("no such type");
                     }
                 }
-            }
+            },
+            // _ = reroute_inter.tick() => {
+                // TODO reroute the intent if didn't finish in time
+                
+            // },
             // heartbeat
-            _ = interval.tick() => {
+            _ = heartbeat_inter.tick() => {
                 // Check stored socket addresses are still valid
                 info!("sending heart beat to check whether resource alive.");
                 let mut invalid_addrs = Vec::new();
@@ -203,7 +207,7 @@ fn message2resource(message: String) -> Result<InternetResource, Box<dyn Error>>
     Ok(resource)
 }
 
-async fn complete_intent(intent: &mut Intent) -> Result<(), Box<dyn Error>> {
+async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>> {
     intent.complete();
     let intent_source = intent.get_resource().unwrap();
     let src = match INTERNET_RESOURCES.lock().unwrap().get(intent_source) {
@@ -213,14 +217,33 @@ async fn complete_intent(intent: &mut Intent) -> Result<(), Box<dyn Error>> {
         None => {
             warn!("resource have been removed");
             // TODO
-            return Ok(());
+            return Ok(0);
         },
     };
     let m = Message::new(MessageType::Response, "Success".to_string(), None);
     let m_json = serde_json::to_string(&m)?;
+    error!("intent {}>>>>>>> send to : {}", intent.get_description(), src);
     SOCKET.lock().unwrap().as_ref().unwrap().send_to(&m_json.as_bytes().to_vec(), src).await?;
+    sleep(time::Duration::from_secs(1));
     intent.complete();
-    INTENT_QUEUE.lock().unwrap().retain(|i| i.get_id() != intent.get_id());
-    info!("intent >{}< complete send to : {}", intent.get_description(), src);
-    Ok(())
+    error!("intent >{}< complete send to : {}", intent.get_description(), src);
+    Ok(intent.get_id())
+}
+
+async fn receive(tx: Sender<(String, SocketAddr)>) {
+    let socket_clone = UdpSocket::bind(TAPE_ADDRESS).await.expect("Failed to bind to socket");
+    let mut buf = [0; 1024];
+    loop {
+        println!("Listening on {}", TAPE_ADDRESS);
+
+        let (amt, src) = socket_clone.recv_from(&mut buf).await.expect("Failed to receive data");
+        
+        let received_data = str::from_utf8(&buf[..amt]).expect("Failed to convert to string");
+        info!("Received {} bytes from {}", amt, src);
+
+        if tx.send((received_data.to_string(), src)).await.is_err() {
+            println!("Failed to send message");
+            break;
+        }
+    }
 }

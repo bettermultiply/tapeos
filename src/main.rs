@@ -95,7 +95,7 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                             sleep(time::Duration::from_secs(1));
                         }
                     },
-                    _ => { warn!("do not support such intent: {}", m.get_body()); }
+                    _ => { warn!("do not support such intent: {} port: {}", m.get_body(), port); }
                 }    
             },
             Err(_e) => {

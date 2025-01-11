@@ -5,8 +5,7 @@
 use std::{
     error::Error, 
     sync::{
-        Mutex,
-        mpsc::{Sender, Receiver}
+        mpsc::{Receiver, Sender}, Mutex
     }
 };
 use lazy_static::lazy_static;

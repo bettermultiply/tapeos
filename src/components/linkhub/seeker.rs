@@ -106,84 +106,70 @@ pub fn get_resource_status_str(name: &str) -> String {
     "".to_string()
 }
 
-// TODO
-// fn find_resource_by_name(name: &str) -> Option<Box<Arc<dyn Resource>>>{
-//     match INTERNET_RESOURCES.lock().unwrap().get(name) {
-//         Some(resource) => {
-//             return Some(Box::new(Arc::clone(resource)));
-//         },
-//         None => (),
-//     }
-//     match BLUETOOTH_RESOURCES.lock().unwrap().get(name) {
-//         Some(resource) => {
-//             let r: &dyn Resource = resource.as_ref(); 
+async fn send_message_internet(r: &InternetResource, i: &str, i_type: &str, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+    let addr = r.get_address();
+    let reject = if r.is_interpreter_none() {
+        let m = Message::new(MessageType::Reject, i.to_string(), id);
+        serde_json::to_string(&m)?
+    } else {
+        let id = if id.is_none() {""} else {&(id.unwrap().to_string() + ":")};
+        "".to_string() + i_type + ":" + id + i
+    };
+    let data: Vec<u8> = reject.as_bytes().to_vec();
+    SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
+    info!("message send");
+    Ok(())
+}
 
-//             return Some(r);
-//         },
-//         None => (),
-//     } 
-    
-//     None
-// }
+async fn send_message_bluetooth(r: &BluetoothResource, i: &str, i_type: &str, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+    let char = r.get_char().as_ref().unwrap();
+    let reject = if r.is_interpreter_none() {
+        let m = Message::new(MessageType::Reject, i.to_string(), id);
+        serde_json::to_string(&m)?
+    } else {
+        let id = if id.is_none() {""} else {&(id.unwrap().to_string() + ":")};
+        "".to_string() + i_type + ":" + id + i
+    };
+    let data: Vec<u8> = reject.as_bytes().to_vec();
+    char.write(&data).await?;
+    info!("message send");
+    Ok(())
+}
 
-pub async fn reject_intent(resource_name: String, intent: String) -> Result<(), Box<dyn Error>> {
-    match INTERNET_RESOURCES.lock().unwrap().get(&resource_name) {
-        Some(resource) => {
-            let addr = resource.get_address();
-            let reject = if resource.is_interpreter_none() {
-                let m = Message::new(MessageType::Reject, intent, None);
-                serde_json::to_string(&m)?
-            } else {
-                "Reject:".to_string() + ":" + &intent
-            };
-            let data: Vec<u8> = reject.as_bytes().to_vec();
-            SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
+pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Box<dyn Error>> {
+    let r_m: std::sync::MutexGuard<'_, HashMap<String, Arc<InternetResource>>> = INTERNET_RESOURCES.lock().unwrap();
+    let r: Option<&Arc<InternetResource>> = r_m.get(&resource_name);
+    if r.is_some() {
+        match send_message_internet(r.unwrap().as_ref(), intent, "Reject", None).await {
+            Ok(_) => (),
+            Err(e) => return Err(e),
+        }
+    }
+    let _ = r;
 
-            return Ok(());
-        },
-        None => (),
-    } 
-    match BLUETOOTH_RESOURCES.lock().unwrap().get(&resource_name) {
-        Some(resource) => {
-            let char = resource.get_char().as_ref().unwrap();
-            let reject = if resource.is_interpreter_none() {
-                let m = Message::new(MessageType::Reject, intent, None);
-                serde_json::to_string(&m)?
-            } else {
-                "Reject:".to_string() + ":" + &intent
-            };
-            let data: Vec<u8> = reject.as_bytes().to_vec();
-            char.write(&data).await?;
-            return Ok(());
-        },
-        None => (),
-    } 
+    let r_m: std::sync::MutexGuard<'_, HashMap<String, Arc<BluetoothResource>>> = BLUETOOTH_RESOURCES.lock().unwrap();
+    let r: Option<&Arc<BluetoothResource>> = r_m.get(&resource_name);
+    if r.is_some() {
+        match send_message_bluetooth(r.unwrap().as_ref(), intent, "Reject", None).await {
+            Ok(_) => (),
+            Err(e) => return Err(e),
+        }
+    }
+    let _ = r;
     
     if resource_name == "TAPE" && TAPE.lock().unwrap().is_some() {
         match TAPE.lock().unwrap().as_ref().unwrap() {
-            ResourceType::Bluetooth(resource) => {
-                let char = resource.get_char().as_ref().unwrap();
-                let reject = if resource.is_interpreter_none() {
-                    let m = Message::new(MessageType::Reject, intent, None);
-                    serde_json::to_string(&m)?
-                } else {
-                    "Reject:".to_string() + ":" + &intent
-                };
-                let data: Vec<u8> = reject.as_bytes().to_vec();
-                char.write(&data).await?;
-                return Ok(());
+            ResourceType::Bluetooth(r) => {
+                match send_message_bluetooth(r, intent, "Reject", None).await {
+                    Ok(()) => (),
+                    Err(e) => return Err(e),
+                }
             },
-            ResourceType::Internet(resource) => {
-                let addr = resource.get_address();
-                let reject = if resource.is_interpreter_none() {
-                    let m = Message::new(MessageType::Reject, intent, None);
-                    serde_json::to_string(&m)?
-                } else {
-                    "Reject:".to_string() + ":" + &intent
-                };
-                let data: Vec<u8> = reject.as_bytes().to_vec();
-                SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
-                return Ok(());
+            ResourceType::Internet(r) => {
+                match send_message_internet(r, intent, "Reject", None).await {
+                    Ok(()) => (),
+                    Err(e) => return Err(e),
+                }
             },
             _ => (),
         }
@@ -192,69 +178,46 @@ pub async fn reject_intent(resource_name: String, intent: String) -> Result<(), 
     Ok(())
 }
 
-pub async fn send_intent(resource_name: String, intent: String, intent_id: i64) -> Result<(), Box<dyn Error>> {
-    match INTERNET_RESOURCES.lock().unwrap().get(&resource_name) {
-        Some(resource) => {
-            let addr = resource.get_address();
-            let i = if resource.is_interpreter_none() {
-                let m = Message::new(MessageType::Intent, intent, Some(intent_id));
-                serde_json::to_string(&m)?
-            } else {
-                "Intent:".to_string() + &intent_id.to_string() + ":" + &intent
-            };
-            info!("Send {} to addr: {}", &i, addr);
-            let data: Vec<u8> = i.as_bytes().to_vec();
+pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> Result<(), Box<dyn Error>> {
+    let r_m = INTERNET_RESOURCES.lock().unwrap();
+    let r = r_m.get(&resource_name);
+    if r.is_some() {
+        match send_message_internet(r.unwrap().as_ref(), intent, "Intent", Some(id)).await {
+            Ok(()) => (),
+            Err(e) => return Err(e),
+        }
+    }
+    let _ = r;
 
-            SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
-            return Ok(());
-        },
-        None => (),
-    } 
-
-    match BLUETOOTH_RESOURCES.lock().unwrap().get(&resource_name) {
-        Some(resource) => {
-            let char = resource.get_char().as_ref().unwrap();
-            let i = if resource.is_interpreter_none() {
-                let m = Message::new(MessageType::Intent, intent, Some(intent_id));
-                serde_json::to_string(&m)?
-            } else {
-                "Intent:".to_string() + &intent_id.to_string() + ":" + &intent
-            };
-            let data: Vec<u8> = i.as_bytes().to_vec();
-            char.write(&data).await?;
-            return Ok(());
-        },
-        None => (),
-    } 
+    let r_m = BLUETOOTH_RESOURCES.lock().unwrap();
+    let r = r_m.get(&resource_name);
+    if r.is_some() {
+        match send_message_bluetooth(r.unwrap().as_ref(), intent, "Intent", Some(id)).await {
+            Ok(_) => (),
+            Err(e) => return Err(e),
+        }
+    }
+    let _ = r; 
 
     if resource_name == "TAPE" && TAPE.lock().unwrap().is_some() {
-        match TAPE.lock().unwrap().as_ref().unwrap() {
-            ResourceType::Bluetooth(resource) => {
-                let char = resource.get_char().as_ref().unwrap();
-                let i = if resource.is_interpreter_none() {
-                    let m = Message::new(MessageType::Intent, intent, Some(intent_id));
-                    serde_json::to_string(&m)?
-                } else {
-                    "Intent:".to_string() + &intent_id.to_string() + ":" + &intent
-                };
-                let data: Vec<u8> = i.as_bytes().to_vec();
-                char.write(&data).await?;
-                return Ok(());
+        let t = TAPE.lock().unwrap();
+        match t.as_ref().unwrap() {
+            ResourceType::Bluetooth(r) => {
+                match send_message_bluetooth(r, intent, "Intent", Some(id)).await {
+                    Ok(()) => (),
+                    Err(e) => return Err(e),
+                }
             },
-            ResourceType::Internet(resource) => {
-                let addr = resource.get_address();
-                let i = if resource.is_interpreter_none() {
-                    let m = Message::new(MessageType::Intent, intent, Some(intent_id));
-                    serde_json::to_string(&m)?
-                } else {
-                    "Intent:".to_string() + &intent_id.to_string() + ":" + &intent
-                };
-                let data: Vec<u8> = i.as_bytes().to_vec();
-                SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
-                return Ok(());
+            ResourceType::Internet(r) => {
+                // TODO: may error here.
+                match send_message_internet(r, intent, "Intent", Some(id)).await {
+                    Ok(()) => (),
+                    Err(e) => return Err(e),
+                }
             },
             _ => (),
         }
+
     }
     
     Ok(())

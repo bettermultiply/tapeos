@@ -21,7 +21,7 @@ pub async fn router(intent: &mut Intent) {
             let address = select_resource(&sub_intent).await;
             sub_intent.set_selected_resource(address);
             let resource = sub_intent.get_selected_resource().unwrap();
-            match send_intent(resource.to_string(), sub_intent.get_description().to_string(), sub_intent.get_id()).await {
+            match send_intent(resource.to_string(), sub_intent.get_description(), sub_intent.get_id()).await {
                 Ok(_) => {
                     sleep(time::Duration::from_secs(1));
                     break;
@@ -77,7 +77,7 @@ pub async fn reroute(sub_intent: &mut SubIntent) {
         let address = select_resource(&sub_intent).await;
         sub_intent.set_selected_resource(address);
         let resource = sub_intent.get_selected_resource().unwrap();
-        match send_intent(resource.to_string(), sub_intent.get_description().to_string(), sub_intent.get_id()).await {
+        match send_intent(resource.to_string(), sub_intent.get_description(), sub_intent.get_id()).await {
             Ok(_) => (),
             Err(_) => (),
         };

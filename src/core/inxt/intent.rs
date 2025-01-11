@@ -37,7 +37,7 @@ pub async fn handler(mut intent: &mut Intent) {
                 Ok(_) => (),
                 Err(err) => {
                     println!("execute failed: {}", err);
-                    let _ = reject_intent("TAPE".to_string(), intent.get_description().to_string());
+                    let _ = reject_intent("TAPE".to_string(), intent.get_description());
                 }
             }
             return;

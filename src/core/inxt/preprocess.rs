@@ -161,13 +161,13 @@ pub fn reject(intent: &Intent) {
         IntentSource::Tape => {
             println!("reject: Reject Tape intent");
             
-            let _ = reject_intent("TAPE".to_string(), response.clone());
+            let _ = reject_intent("TAPE".to_string(), &response);
         },
         _ => {
             println!("reject: Reject resource intent");
             let source = intent.get_resource();
             if source.is_some() {
-                let _ = reject_intent(source.unwrap().to_string(), intent.get_description().to_string());
+                let _ = reject_intent(source.unwrap().to_string(), intent.get_description());
             } else {
                 println!("No resource found, error intent");
             }

@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 // maybe we should not focus on puzzling message but simple structed information.
 use serde::{Serialize, Deserialize};
 
@@ -19,7 +21,21 @@ pub enum MessageType {
     Finish,
     Register,
     Heartbeat,
-    Unknow,
+    Unknown,
+}
+
+impl Display for MessageType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MessageType::Intent => write!(f, "Intent"),
+            MessageType::Response => write!(f, "Response"),
+            MessageType::Reject => write!(f, "Reject"),
+            MessageType::Finish => write!(f, "Finish"),
+            MessageType::Register => write!(f, "Register"),
+            MessageType::Heartbeat => write!(f, "Heartbeat"),
+            MessageType::Unknown => write!(f, "Unknown"),
+        }
+    }
 }
 
 impl Message {

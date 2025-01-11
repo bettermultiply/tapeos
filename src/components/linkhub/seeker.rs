@@ -106,14 +106,14 @@ pub fn get_resource_status_str(name: &str) -> String {
     "".to_string()
 }
 
-async fn send_message_internet(r: &InternetResource, i: &str, i_type: &str, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+async fn send_message_internet(r: &InternetResource, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
     let addr = r.get_address();
     let reject = if r.is_interpreter_none() {
-        let m = Message::new(MessageType::Reject, i.to_string(), id);
+        let m = Message::new(i_type, i.to_string(), id);
         serde_json::to_string(&m)?
     } else {
         let id = if id.is_none() {""} else {&(id.unwrap().to_string() + ":")};
-        "".to_string() + i_type + ":" + id + i
+        i_type.to_string() + ":" + id + i
     };
     let data: Vec<u8> = reject.as_bytes().to_vec();
     SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
@@ -121,14 +121,14 @@ async fn send_message_internet(r: &InternetResource, i: &str, i_type: &str, id: 
     Ok(())
 }
 
-async fn send_message_bluetooth(r: &BluetoothResource, i: &str, i_type: &str, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+async fn send_message_bluetooth(r: &BluetoothResource, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
     let char = r.get_char().as_ref().unwrap();
     let reject = if r.is_interpreter_none() {
-        let m = Message::new(MessageType::Reject, i.to_string(), id);
+        let m = Message::new(i_type, i.to_string(), id);
         serde_json::to_string(&m)?
     } else {
         let id = if id.is_none() {""} else {&(id.unwrap().to_string() + ":")};
-        "".to_string() + i_type + ":" + id + i
+        i_type.to_string() + ":" + id + i
     };
     let data: Vec<u8> = reject.as_bytes().to_vec();
     char.write(&data).await?;
@@ -140,7 +140,7 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Bo
     let r_m: std::sync::MutexGuard<'_, HashMap<String, Arc<InternetResource>>> = INTERNET_RESOURCES.lock().unwrap();
     let r: Option<&Arc<InternetResource>> = r_m.get(&resource_name);
     if r.is_some() {
-        match send_message_internet(r.unwrap().as_ref(), intent, "Reject", None).await {
+        match send_message_internet(r.unwrap().as_ref(), intent, MessageType::Reject, None).await {
             Ok(_) => (),
             Err(e) => return Err(e),
         }
@@ -150,7 +150,7 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Bo
     let r_m: std::sync::MutexGuard<'_, HashMap<String, Arc<BluetoothResource>>> = BLUETOOTH_RESOURCES.lock().unwrap();
     let r: Option<&Arc<BluetoothResource>> = r_m.get(&resource_name);
     if r.is_some() {
-        match send_message_bluetooth(r.unwrap().as_ref(), intent, "Reject", None).await {
+        match send_message_bluetooth(r.unwrap().as_ref(), intent, MessageType::Reject, None).await {
             Ok(_) => (),
             Err(e) => return Err(e),
         }
@@ -160,13 +160,13 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Bo
     if resource_name == "TAPE" && TAPE.lock().unwrap().is_some() {
         match TAPE.lock().unwrap().as_ref().unwrap() {
             ResourceType::Bluetooth(r) => {
-                match send_message_bluetooth(r, intent, "Reject", None).await {
+                match send_message_bluetooth(r, intent, MessageType::Reject, None).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }
             },
             ResourceType::Internet(r) => {
-                match send_message_internet(r, intent, "Reject", None).await {
+                match send_message_internet(r, intent, MessageType::Reject, None).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }
@@ -182,7 +182,7 @@ pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> Result
     let r_m = INTERNET_RESOURCES.lock().unwrap();
     let r = r_m.get(&resource_name);
     if r.is_some() {
-        match send_message_internet(r.unwrap().as_ref(), intent, "Intent", Some(id)).await {
+        match send_message_internet(r.unwrap().as_ref(), intent, MessageType::Intent, Some(id)).await {
             Ok(()) => (),
             Err(e) => return Err(e),
         }
@@ -192,7 +192,7 @@ pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> Result
     let r_m = BLUETOOTH_RESOURCES.lock().unwrap();
     let r = r_m.get(&resource_name);
     if r.is_some() {
-        match send_message_bluetooth(r.unwrap().as_ref(), intent, "Intent", Some(id)).await {
+        match send_message_bluetooth(r.unwrap().as_ref(), intent, MessageType::Intent, Some(id)).await {
             Ok(_) => (),
             Err(e) => return Err(e),
         }
@@ -203,14 +203,14 @@ pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> Result
         let t = TAPE.lock().unwrap();
         match t.as_ref().unwrap() {
             ResourceType::Bluetooth(r) => {
-                match send_message_bluetooth(r, intent, "Intent", Some(id)).await {
+                match send_message_bluetooth(r, intent, MessageType::Intent, Some(id)).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }
             },
             ResourceType::Internet(r) => {
                 // TODO: may error here.
-                match send_message_internet(r, intent, "Intent", Some(id)).await {
+                match send_message_internet(r, intent, MessageType::Intent, Some(id)).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }

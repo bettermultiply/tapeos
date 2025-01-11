@@ -20,7 +20,7 @@ use crate::{
     base::{ 
         intent::{Intent, IntentSource, IntentType},
         resource::{Interpreter, Position, Resource}
-    }, components::linkhub::{bluetooth::resource::BluetoothResource, seeker::{send_intent, BLUETOOTH_RESOURCES, INTENT_QUEUE, RESPONSE_QUEUE, SEEK_RECV}}, core::inxt::intent::handler, tools::llmq
+    }, components::linkhub::{bluetooth::resource::BluetoothResource, seeker::{send_intent, BLUETOOTH_RESOURCES, RESPONSE_QUEUE, SEEK_RECV}}, core::inxt::intent::handler, tools::llmq
 };
 
 #[allow(dead_code)]
@@ -146,9 +146,8 @@ async fn check_resources() -> bluer::Result<()> {
             let (key, value) = receive_message(resource).await?;
             match key.as_str() {
                 "Intent" => {
-                    let mut intent = receive_intent(value, resource).await?;
-                    handler(&mut intent).await;
-                    INTENT_QUEUE.lock().unwrap().push(intent);
+                    let intent = receive_intent(value, resource).await?;
+                    handler(intent).await;
                 }
                 "Response" => {
                     let response = receive_response(value).await?;
@@ -313,9 +312,8 @@ pub async fn execute_waiter_request(request: String) {
         match key.as_str() {
             "Intent" => {
                 println!("Intent: {}", value);
-                let mut intent = Intent::new(value, IntentSource::Resource, IntentType::Intent, None);
-                handler(&mut intent).await;
-                INTENT_QUEUE.lock().unwrap().push(intent);
+                let intent = Intent::new(value, IntentSource::Resource, IntentType::Intent, None);
+                handler(intent).await;
             }
             _ => {
                 println!("Unsupported request: {}", key);

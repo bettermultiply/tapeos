@@ -3,7 +3,7 @@
 
 use core::time;
 use std::thread::sleep;
-
+use std::error::Error;
 use crate::{
     base::intent::{Intent, SubIntent}, 
     components::linkhub::seeker::{get_resource_description, get_resource_status_str, send_intent}, 
@@ -73,7 +73,7 @@ async fn score_by_ai(sub_intent: &str, resource: &str) -> i32 {
     score.parse::<i32>().unwrap()
 }
 
-pub async fn reroute(sub_intent: &mut SubIntent) {
+pub async fn reroute(sub_intent: &mut SubIntent)  -> Result<(), Box<dyn Error>> {
         let address = select_resource(&sub_intent).await;
         sub_intent.set_selected_resource(address);
         let resource = sub_intent.get_selected_resource().unwrap();
@@ -81,4 +81,5 @@ pub async fn reroute(sub_intent: &mut SubIntent) {
             Ok(_) => (),
             Err(_) => (),
         };
+        Ok(())
 }

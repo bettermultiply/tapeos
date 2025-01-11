@@ -29,7 +29,7 @@ use futures::{future, pin_mut, StreamExt};
 
 use crate::{
     base::intent::{Intent, IntentSource, IntentType},
-    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::{send_intent, INTENT_QUEUE}, waiter::{ResourceType, TAPE, WAIT_RECV}},
+    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::send_intent, waiter::{ResourceType, TAPE, WAIT_RECV}},
     core::inxt::intent::handler
 };
 
@@ -186,9 +186,8 @@ async fn wait_bluetooth_linux() -> bluer::Result<()> {
                 match read_res {
                     Ok(0) => {
                         println!("Write stream ended");
-                        let mut intent = parse_to_intent(&value);
-                        handler(& mut intent).await;
-                        INTENT_QUEUE.lock().unwrap().push(intent);
+                        let intent = parse_to_intent(&value);
+                        handler(intent).await;
                         reader_opt = None;
                     }
                     Ok(n) => {

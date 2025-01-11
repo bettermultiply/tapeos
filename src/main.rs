@@ -8,11 +8,12 @@ use tokio::net::UdpSocket;
 
 #[tokio::main]
 async fn main() {
+    info!("main: Try to execute intent");
     env_logger::init();
     init_id_generator();
 
+
     // let intent = Intent::new("store my name".to_string(), IntentSource::Resource, IntentType::Intent, None);
-    info!("main: Try to execute intent");
     tokio::spawn(async {
         let _ = register("MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 8001).await;
     });
@@ -28,9 +29,8 @@ async fn main() {
         
     });
 
-    sleep(time::Duration::from_secs(3));
-
     let _ = seek().await;
+
     
     // intent::handler(intent).await;
     println!("main: Try ended");
@@ -52,7 +52,7 @@ async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dy
                 _ => (),
             }
             info!("Input didnt get info");
-            sleep(time::Duration::from_secs(1));
+            sleep(time::Duration::from_secs(2));
         }
         break;
     }
@@ -75,7 +75,7 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                 match m.get_type() {
                     MessageType::Heartbeat => heart_beat_report(&socket, &tape).await?,
                     MessageType::Intent => {
-                    random_execute(&m.get_body()).await?;
+                    random_execute(&m.get_body())?;
                         loop {
                             let m = Message::new(MessageType::Response, "Over".to_string(), m.get_id());
                             // let m = Message::new(MessageType::Response, "".to_string(), m.get_id());
@@ -129,7 +129,7 @@ fn parse_message(v: &[u8]) -> Message {
         Err(e) => {
             warn!("{:?}", e);
             // TODO: try to parse
-            Message::new(MessageType::Unknow, "".to_string(), None)
+            Message::new(MessageType::Unknown, "".to_string(), None)
         },
     }
 }
@@ -218,6 +218,7 @@ async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> R
     }
     Ok(1)
 }
+
 /*use tapeos::{
     components::linkhub::{seeker, waiter},
     tools::idgen::init_id_generator

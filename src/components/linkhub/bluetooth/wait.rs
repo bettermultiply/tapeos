@@ -15,21 +15,20 @@ use bluer::{
     AdapterEvent, Device, Address
 };
 
+use log::warn;
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, BufReader},
     time::{interval, sleep},
 };
 
 use std::{
-    error::Error, 
-    time::Duration, 
-    collections::{HashMap, BTreeMap}
+    collections::{BTreeMap, HashMap}, error::Error, sync::{Arc, Mutex}, time::Duration
 };
 use futures::{future, pin_mut, StreamExt};
 
 use crate::{
-    base::intent::{Intent, IntentSource, IntentType},
-    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::send_intent, waiter::{ResourceType, TAPE, WAIT_RECV}},
+    base::{errort::BoxResult, intent::{Intent, IntentSource, IntentType}},
+    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::send_intent, waiter::{ResourceType, BTAPE, ITAPE, TAPE, WAIT_RECV}},
     core::inxt::intent::handler
 };
 
@@ -75,7 +74,7 @@ const TAPE_CHARACTERISTIC_UUID: uuid::Uuid = uuid::Uuid::from_u128(0x00001524_12
 #[allow(dead_code)]
 const TAPE_MANUFACTURER_ID: u16 = 0xf00d;
 
-async fn wait_bluetooth_linux() -> bluer::Result<()> {
+async fn wait_bluetooth_linux() -> BoxResult<()> {
     let session = bluer::Session::new().await?;
     let adapter = session.default_adapter().await?;
     adapter.set_powered(true).await?;
@@ -162,7 +161,7 @@ async fn wait_bluetooth_linux() -> bluer::Result<()> {
                 }
             }
             // check device itself initiative action
-            _ = interval.tick(), if TAPE.lock().unwrap().is_some() => {
+            _ = interval.tick(), if !TAPE.lock().unwrap().is_bluetooth() => {
                 check_device();
             }
             // handle .
@@ -244,8 +243,10 @@ fn parse_request(request: String) -> HashMap<String, String> {
     map
 }
 
-async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
-    
+async fn store_bluetooth_tape(device: Device) -> BoxResult<()> {
+    if !TAPE.lock().unwrap().is_none() {
+        
+    }
     let props = device.all_properties().await?;
     for service in device.services().await? {
         let uuid = service.uuid().await?;
@@ -260,8 +261,7 @@ async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
                         Some(service),
                         Some(cha),
                     ); 
-                    
-                    TAPE.lock().unwrap().replace(ResourceType::Bluetooth(resource));
+                    BTAPE.lock().unwrap().replace(Arc::new(Mutex::new(resource)));
                     return Ok(());
                 }
             }
@@ -271,7 +271,23 @@ async fn store_bluetooth_tape(device: Device) -> bluer::Result<()> {
 }
 
 async fn remove_tape(address: Address) -> bluer::Result<()> {
-    TAPE.lock().unwrap().take();
+    let mut tape_type = TAPE.lock().unwrap();
+    match tape_type.copy() {
+        ResourceType::Bluetooth => {
+            *tape_type = ResourceType::None;
+            let _ = BTAPE.lock().unwrap().take();
+        },
+        ResourceType::Internet => {
+            *tape_type = ResourceType::None;
+            let _ = ITAPE.lock().unwrap().take();
+        },
+        ResourceType::None => {
+            warn!("no Tape now");
+        },
+        _ => {
+            warn!("no such type");
+        },
+    }
 
     println!("Device removed: {:?}", address);
     Ok(())

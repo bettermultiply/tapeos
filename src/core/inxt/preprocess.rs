@@ -7,71 +7,93 @@
 //         ->reject
 use chrono::{Local, Datelike};
 use log::info;
+use std::process::Command;
 
 use crate::{
     base::{
-        intent::{Intent, IntentSource}, rule::{Rule, RuleDetail, RuleSet, STATIC_RULES}
-    }, components::linkhub::seeker::reject_intent, tools::{llmq::prompt, record::record}
+        errort::{BoxResult, JudgeError},
+        intent::Intent, 
+        rule::{Rule, RuleDetail, RULES, STATIC_RULES}
+    }, tools::llmq::prompt,
 };
 
 pub enum JudgeResult {
-    Reject,
+    Reject(String),
     Accept,
-    SpecialExecution,
+    Execution,
 }
 
 // preprocess the intent.
 pub async fn process(intent: &Intent) -> JudgeResult {
-    println!("process: Judge the intent: {}", intent.get_description());
+    info!("process: Judge the intent: {}", intent.get_description());
     
-    if filter(intent).await {
-        return JudgeResult::Reject;
+    match filter(intent).await {
+        Ok(_) => (),
+        Err(e) => return JudgeResult::Reject(format_reject(intent.get_description(), &format!("{}", e))),
     }
     
-    println!("process: Filter passed");
+    info!("process: Filter passed");
     
-    if special_execution(intent).await {
-        return JudgeResult::SpecialExecution;
+    match spec_exec(intent).await {
+        Ok(false) => (),
+        Ok(true) => return JudgeResult::Execution,
+        Err(e) => return JudgeResult::Reject(format_reject(intent.get_description(), &format!("{}", e))),
+
     }
 
-    println!("process: Special execution passed");
+    info!("process: Special execution passed");
 
     JudgeResult::Accept
 }
 
 // filter the unacceptible intent.
-async fn filter(intent: &Intent) -> bool {
-    if essential_judge(intent).await || user_judge(intent).await {
-        println!("filter: Essential and user judge error");
-        reject(intent);
-        return true;
+async fn filter(intent: &Intent) -> BoxResult<()> {
+    match essential_judge(intent).await {
+        Ok(_) => (),
+        Err(e) => {
+            return Err(e);
+        }
+    }
+    match user_judge(intent).await {
+        Ok(_) => (),
+        Err(e) => {
+            return Err(e);
+        }
     }
 
-    println!("filter: Essential and user judge passed");
-    false
+    Ok(())
 }
 
 // special execution for the intent.
-async fn special_execution(intent: &Intent) -> bool {
-    println!("special execution: ");
+async fn spec_exec(intent: &Intent) -> BoxResult<bool> {
+    
+    let i = intent.get_description();
+    let i_pair = i.split(":").collect::<Vec<&str>>();
+    if i_pair.len() != 2 {
+        return Ok(false);
+    }
+
     let special_id = STATIC_RULES["reject"].get_id();
-    for rule in STATIC_RULES.values() {
-        if rule.get_id() < special_id {
+    for rule in STATIC_RULES.values().into_iter() {
+        if rule.get_id() < special_id || i_pair[1] != rule.get_name() {
             continue;
         }
 
-        if rule_judge(intent, rule).await {
-            println!("special execution: Judge based on the rule: {}", rule.get_name());
-            return true;
+        match rule_judge(intent, rule).await {
+            Ok(()) => {
+                info!("special execution: ");
+                return Ok(true);   
+            },
+            Err(e) => return Err(e),
         }
     }
 
-    false
+    Ok(false)
 }
 
 // should be used to judge  every intent.
-async fn essential_judge(intent: &Intent) -> bool {
-    println!("essential judge: ");
+async fn essential_judge(intent: &Intent) -> BoxResult<()> {
+    info!("essential judge: ");
     
     // in essential part, all rule's will be hard coded.
     // essential rules will never be expired.
@@ -79,32 +101,34 @@ async fn essential_judge(intent: &Intent) -> bool {
     let special_id = STATIC_RULES["reject"].get_id();
     for rule in STATIC_RULES.values() {
         if rule.get_id() >= special_id {
-            break;
+                info!("judge np, rule id: {}",rule.get_id() );
+                continue;
         }
 
-        if rule_judge(intent, rule).await {
-            println!("essential judge: Judge based on the rule: {}", rule.get_name());
-            return true;
+        match rule_judge(intent, rule).await {
+            Ok(()) => {
+                info!("judge Pass")
+            },
+            Err(e) => return Err(e),
         }
     }
 
-    println!("essential judge: Judge passed");
-    false
+    info!("essential judge: Judge passed");
+    Ok(())
 }
 
 // this judge is conducted depends on intent's attributes.
-async fn user_judge(intent: &Intent) -> bool {
+async fn user_judge(intent: &Intent) -> BoxResult<()> {
     // TODO: Maybe rule can be specified for intent type.
-    println!("user judge: ");
-    for rule in RuleSet::iter_rules() {
-        if rule_judge(intent, rule).await {
-            println!("user judge: Judge based on the rule: {}", rule.get_name());
-            return true;
+    for rule in RULES.lock().unwrap().iter_rules() {
+        match rule_judge(intent, rule).await {
+            Ok(_) => (),
+            Err(e) => return Err(e),
         }
     }
 
-    println!("user judge: Judge passed");
-    false
+    info!("user judge: Judge passed");
+    Ok(())
 }
 
 // judge the intent by user defined rule.
@@ -113,65 +137,57 @@ async fn user_judge(intent: &Intent) -> bool {
 //} else {
 //  judge result is false then allow intent to be executed.
 //}
-async fn rule_judge(intent: &Intent, rule: &Rule) -> bool {
+async fn rule_judge(intent: &Intent, rule: &Rule) -> BoxResult<()> {
+    
     match rule.get_rule_detail() {
         RuleDetail::Source(intent_source) 
-            => intent.get_source() == intent_source,
-        RuleDetail::Time(_) 
-            => rule.is_expired(),
+            => if intent.get_source() == intent_source { 
+                return Err(Box::new(JudgeError::new("We do not accept intent from the source now.")));
+            },
+        RuleDetail::Time 
+            => if rule.is_expired() {
+                return Err(Box::new(JudgeError::new("We do not accept intent from the source now.")));
+            },
         RuleDetail::Weekday(weekday) => {
             let now = Local::now().date_naive().weekday();
-            now == *weekday
-        },
-        RuleDetail::UserDefined(rule_description) => {
-            let prompt_content = format!("the rule description is: {}\n the intent description is: {}.", rule_description, intent.get_description());
-            let outcome = match prompt("If the intent conform to the rule, return true, otherwise return false. do not ouput dot or any other things",&prompt_content).await.as_str() {
-                "true" => true,
-                "false" => false,
-                _ => false,
-            };
-            info!("{outcome}");
-            outcome
-        },
-        RuleDetail::Function(rule_func) => {
-            rule_func(intent)
-        }, 
-        RuleDetail::Prompt(prompt_content) => {
-            let prompt_content = format!("{} {}", prompt_content, intent.get_description());
-            let outcome = match prompt("",&prompt_content).await.as_str() {
-                "true" => true,
-                "false" => false,
-                _ => false,
-            };
-            info!("{outcome}");
-            outcome
-        },
-    }
-}
-
-// sending intnet back to source.
-pub fn reject(intent: &Intent) {
-    println!("reject: ");
-    println!("reject: Reject the intent: {}", intent.get_description());
-    let response = 
-        format!("intent: {}\nreject reason: {}", intent.get_description(), intent.get_reject_reason().unwrap());
-    
-    match intent.get_source() {
-        IntentSource::Tape => {
-            println!("reject: Reject Tape intent");
-            
-            let _ = reject_intent("TAPE".to_string(), &response);
-        },
-        _ => {
-            println!("reject: Reject resource intent");
-            let source = intent.get_resource();
-            if source.is_some() {
-                let _ = reject_intent(source.unwrap().to_string(), intent.get_description());
-            } else {
-                println!("No resource found, error intent");
+            if now == *weekday {
+                return Err(Box::new(JudgeError::new("We do not accept intent today.")));
             }
         },
-    }
- 
-    record(response);
+        RuleDetail::Prompt(rule_description) => {
+            let prompt_content = format!("the rule description is: {}\n the intent description is: {}.", rule_description, intent.get_description());
+            match prompt("If the intent conform to the rule, return true, otherwise return false. do not ouput dot or any other things",&prompt_content).await.as_str() {
+                "true" => return Err(Box::new(JudgeError::new("We do not accept such intent now."))),
+                _ => (),
+            };
+        },
+        RuleDetail::Function(rule_func) 
+            => {
+                if rule_func(intent) {
+                    return Err(Box::new(JudgeError::new("We do not accept such intent.")));
+                }
+            },
+        RuleDetail::Program(path) 
+            => {
+                let status = Command::new("rustc")
+                    .arg(path)
+                    .status()
+                    .expect("no such function");
+                if status.success() {
+                    return Err(Box::new(JudgeError::new("We do not accept such intent now.")));
+                }
+            },
+        _ => (),
+    };
+    Ok(())
+}
+
+pub fn format_reject(intent: &str, reason: &str) -> String {
+    info!("reject: Reject the intent: {}", intent);
+    let response = format!(
+        "intent: {}\nreject reason: {}", 
+        intent, 
+        reason
+    );
+    response
 }

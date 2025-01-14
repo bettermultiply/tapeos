@@ -5,10 +5,7 @@ use bluer::{
     gatt::remote::{Characteristic, Service}
 };
 use std::{
-    collections::HashMap, 
-    time::Duration, 
-    error::Error, 
-    sync::Arc, 
+    collections::HashMap, error::Error, sync::{Arc, Mutex}, time::Duration 
 };
 use futures::{pin_mut, StreamExt, future};
 use tokio::{
@@ -140,13 +137,14 @@ const RETRIES: u8 = 2;
 async fn check_resources() -> bluer::Result<()> {
     let resources = BLUETOOTH_RESOURCES.lock().unwrap();
     for (_, resource) in resources.iter() {
-        let _ = query_status(resource.get_name()).await;
-        let char = resource.get_char().as_ref().unwrap();
+        let r = resource.lock().unwrap();
+        let _ = query_status(r.get_name()).await;
+        let char = r.get_char().as_ref().unwrap();
         if char.flags().await?.read {
-            let (key, value) = receive_message(resource).await?;
+            let (key, value) = receive_message(Arc::clone(resource)).await?;
             match key.as_str() {
                 "Intent" => {
-                    let intent = receive_intent(value, resource).await?;
+                    let intent = receive_intent(value, Arc::clone(resource)).await?;
                     handler(intent).await;
                 }
                 "Response" => {
@@ -157,7 +155,7 @@ async fn check_resources() -> bluer::Result<()> {
             }
         }
     }
-    println!("check resources {} times", resources.len());
+    println!("check resources {} times", BLUETOOTH_RESOURCES.lock().unwrap().len());
     Ok(())
 }
 
@@ -207,15 +205,17 @@ async fn find_tape_characteristic(device: Device) -> bluer::Result<bluer::Result
 async fn store_resource(device: Device, cha: Characteristic, service: Service) -> bluer::Result<()> {
     let props = device.all_properties().await?;
     let name = device.name().await?.unwrap_or_default();
-    let mut resource = BluetoothResource::new(
+    let resource = BluetoothResource::new(
         name.clone(),
         device,
         props,
         Some(service),
         Some(cha),
     );
-    complete_resource(&mut resource).await?;
-    BLUETOOTH_RESOURCES.lock().unwrap().insert(name, Arc::new(resource));
+    let r = Arc::new(Mutex::new(resource));
+    let r_copy = Arc::clone(&r);
+    BLUETOOTH_RESOURCES.lock().unwrap().insert(name, r);
+    complete_resource(r_copy).await?;
     Ok(())
 }
 
@@ -224,18 +224,18 @@ fn remove_resource(name: String) {
 }
 
 // complete the resource by the resource pool
-async fn complete_resource(blue_resource: &mut BluetoothResource) -> bluer::Result<()> {
-    let _ = query_status(blue_resource.get_name()).await;
+async fn complete_resource(blue_resource: Arc<std::sync::Mutex<BluetoothResource>>) -> bluer::Result<()> {
+    let _ = query_status(blue_resource.lock().unwrap().get_name()).await;
     let value: String;
     loop {
-        let (k, v) = receive_message(blue_resource).await?;
+        let (k, v) = receive_message(Arc::clone(&blue_resource)).await?;
         if k == "Response" {
             value = v;
             break;
         }
     }
     let response = receive_response(value).await?;
-    let resource: &mut dyn Resource = blue_resource;
+    let mut resource = blue_resource.lock().unwrap();
     let status = resource.get_status();
     for status_pair in response.get("status").unwrap().split(';') {
         let status_name = status_pair.split(':').next().unwrap();
@@ -258,8 +258,9 @@ pub async fn query_status(resource: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn receive_message(blue_resource: &BluetoothResource) -> bluer::Result<(String, String)> {
-    let char = blue_resource.get_char().as_ref().unwrap();
+pub async fn receive_message(blue_resource: Arc<std::sync::Mutex<BluetoothResource>>) -> bluer::Result<(String, String)> {
+    let b_resource = blue_resource.lock().unwrap();
+    let char = b_resource.get_char().as_ref().unwrap();
     let data = char.read().await?;
     let raw = String::from_utf8(data).unwrap();
     let parts = raw.splitn(2, ':').collect::<Vec<&str>>();
@@ -270,12 +271,13 @@ pub async fn receive_message(blue_resource: &BluetoothResource) -> bluer::Result
     Ok((parts[0].to_string(), parts[1].to_string()))
 }
 
-pub async fn receive_intent(raw_intent: String, blue_resource: &BluetoothResource) -> bluer::Result<Intent> {
+pub async fn receive_intent(raw_intent: String, blue_resource: Arc<std::sync::Mutex<BluetoothResource>>) -> bluer::Result<Intent> {
+    let r = blue_resource.lock().unwrap();
     let intent = Intent::new(
         raw_intent,
         IntentSource::Resource, 
         IntentType::Intent,
-        Some(blue_resource.get_name().to_string())
+        Some(r.get_name().to_string())
     );
 
     Ok(intent)

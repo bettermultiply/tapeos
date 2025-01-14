@@ -43,4 +43,5 @@ pub mod base {
     pub mod rule;
     pub mod intent;
     pub mod staticrule;
+    pub mod errort;
 }

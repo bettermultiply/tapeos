@@ -1,5 +1,7 @@
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
+use serde::{Deserialize, Serialize};
+
 use crate::tools::idgen::{self, IdType};
 
 // raw intent format is "Intent:intent_description"
@@ -16,7 +18,7 @@ pub struct Intent {
     reject_reason: Option<String>,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntentSource {
     Tape,
     Resource,
@@ -28,6 +30,7 @@ pub enum IntentType {
     Intent,
     Response,
     Reject,
+    Rule,
 }
 
 pub struct SubIntent {

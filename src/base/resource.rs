@@ -56,7 +56,7 @@ pub enum Interpreter {
 }
 
 // Status is unique for each resource. However, there are some common statuses.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Status {
     // aviliability shows the resource is available or not.
     aviliability: bool,
@@ -95,7 +95,7 @@ impl Status {
 
 // position is a common field for all resources.
 // it is a 3D vector, which can be used to describe the position of the resource.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[allow(unused)]
 pub struct Position {
     x: f32,

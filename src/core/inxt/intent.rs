@@ -19,15 +19,15 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
 
     // preprocess the intent, including filter and special execution.
     match process(&intent).await {
-        JudgeResult::SpecialExecution => {
-            return JudgeResult::SpecialExecution;
+        JudgeResult::Execution => {
+            return JudgeResult::Execution;
         },
-        JudgeResult::Reject => {
-            return JudgeResult::Reject;
+        JudgeResult::Reject(e) => {
+            return JudgeResult::Reject(e);
         },
         JudgeResult::Accept => (),
     }
-
+    
     // disassemble the intent.
     match disassembler(&mut intent).await {
         Some(_) => {

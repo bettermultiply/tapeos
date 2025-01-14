@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{fmt, net::SocketAddr};
 
 use crate::base::resource::{Interpreter, Resource, ResourceAddress, Status};
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,12 @@ impl InternetResource {
     }
 }
 
+impl fmt::Display for InternetResource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}/{}/{};", self.get_name(), self.get_description(), self.display_status())
+    }
+}
+
 impl Resource for InternetResource {
     fn get_name(&self) -> &str {
         &self.name
@@ -46,7 +52,7 @@ impl Resource for InternetResource {
     }
 
     fn set_status(&mut self, status: Status) {
-        self.status = status;
+        self.status = status
     }
 
     fn set_interpreter(&mut self, interpreter: Interpreter) {

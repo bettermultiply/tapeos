@@ -5,7 +5,7 @@
 use std::{
     error::Error, 
     sync::{
-        mpsc::{Receiver, Sender}, Mutex
+        mpsc::{Receiver, Sender}, Arc, Mutex
     }
 };
 use lazy_static::lazy_static;
@@ -24,13 +24,50 @@ pub enum WaitMethod {
 
 const WAIT_METHOD: WaitMethod = WaitMethod::Bluetooth;
 pub enum ResourceType {
-    Bluetooth(BluetoothResource),
-    Internet(InternetResource),
+    Bluetooth,
+    Internet,
     Other,
+    None
+}
+
+impl ResourceType {
+    pub fn is_none(&self) -> bool {
+        match self {
+            ResourceType::None => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_bluetooth(&self) -> bool {
+        match self {
+            ResourceType::Bluetooth => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_internet(&self) -> bool {
+        match self {
+            ResourceType::Internet => true,
+            _ => false,
+        }
+    }
+
+    pub fn copy(&self) -> ResourceType {
+        match self {
+            ResourceType::Internet => ResourceType::Internet,
+            ResourceType::Bluetooth => ResourceType::Bluetooth,
+            ResourceType::None => ResourceType::None,
+            _ => ResourceType::Other,
+        }
+    }
+
+
 }
 
 lazy_static! {
-    pub static ref TAPE: Mutex<Option<ResourceType>> = Mutex::new(None);
+    pub static ref TAPE: Arc<Mutex<ResourceType>> = Arc::new(Mutex::new(ResourceType::None));
+    pub static ref BTAPE: Arc<Mutex<Option<Arc<Mutex<BluetoothResource>>>>> = Arc::new(Mutex::new(None));
+    pub static ref ITAPE: Arc<Mutex<Option<Arc<Mutex<InternetResource>>>>> = Arc::new(Mutex::new(None));
     pub static ref WAIT_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref WAIT_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
 }

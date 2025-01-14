@@ -1,11 +1,11 @@
 // in this file, we will store rules for judging the intent.
 
 use std::{
-    sync::LazyLock,
-    collections::HashMap,
-    time::{Duration, Instant}
+    collections::HashMap, path::PathBuf, sync::{Arc, LazyLock, Mutex}, time::{Duration, Instant}
 };
 use chrono::Weekday;
+use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use crate::{
     tools::idgen::{generate_id, IdType},
     base::intent::IntentSource,
@@ -13,17 +13,47 @@ use crate::{
     base::staticrule,
 };
 
-pub static RULES: LazyLock<RuleSet> = LazyLock::new(|| RuleSet{rules: vec![]});
+lazy_static! {
+    pub static ref RULES: Arc<Mutex<RuleSet>> = Arc::new(Mutex::new(RuleSet::new()));
+
+}
 
 // judge whether to accept the intent.
 // actually rule means not to do something.
 pub enum RuleDetail {
     Function(fn(&Intent) -> bool),
+    Program(PathBuf),
     Prompt(String),
     Source(IntentSource), // based on the source of the intent.
-    Time(Duration), // based on the time to reject the intent.
+    Time, // based on the time to reject the intent.
     Weekday(Weekday), // based on the weekday to reject the intent.
-    UserDefined(String), // based on user description and ai.
+    Undefine,
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum TransRuleDetail {
+    Prompt(String),
+    Source(IntentSource), // based on the source of the intent.
+    Time, // based on the time to reject the intent.
+    Weekday(TransWeekday), // based on the weekday to reject the intent.
+}
+
+#[derive(Deserialize, Serialize)]
+pub enum TransWeekday {
+    /// Monday.
+    Mon = 0,
+    /// Tuesday.
+    Tue = 1,
+    /// Wednesday.
+    Wed = 2,
+    /// Thursday.
+    Thu = 3,
+    /// Friday.
+    Fri = 4,
+    /// Saturday.
+    Sat = 5,
+    /// Sunday.
+    Sun = 6,
 }
 
 pub struct Rule {
@@ -34,6 +64,14 @@ pub struct Rule {
     detail: RuleDetail,
     valid_time: Duration,
     created_time: Instant,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct TransRule {
+    pub name: String,
+    pub description: String,
+    pub valid_time: Duration,
+    pub detail: TransRuleDetail,
 }
 
 impl Rule {
@@ -90,6 +128,11 @@ pub struct RuleSet {
 }
 
 impl RuleSet {
+    fn new() -> Self {
+        Self {
+            rules: vec![]
+        }
+    }
     
     pub fn add_rule(&mut self, rule: Rule) {
         self.rules.push(rule);
@@ -111,12 +154,10 @@ impl RuleSet {
         self.rules.retain(|r: &Rule| !r.is_expired() || r.id < 1000);
     }
 
-    pub fn iter_rules() -> impl Iterator<Item = &'static Rule> {
-        RULES.rules.iter()
+    pub fn iter_rules(&self) -> impl Iterator<Item = &Rule> {
+        self.rules.iter()
     }
 }
-
-
 
 pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMap::from([
     (
@@ -148,6 +189,28 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             name: "reject".to_string(), 
             description: "reject".to_string(), 
             detail: RuleDetail::Function(staticrule::reject), 
+            valid_time: Duration::from_secs(0),
+            created_time: Instant::now(),
+        },
+    ),
+    (
+        "rule", 
+        Rule {
+            id: 501,
+            name: "rule".to_string(), 
+            description: "set new rule".to_string(), 
+            detail: RuleDetail::Function(staticrule::rule), 
+            valid_time: Duration::from_secs(0),
+            created_time: Instant::now(),
+        },
+    ),
+    (
+        "status", 
+        Rule {
+            id: 502,
+            name: "status".to_string(), 
+            description: "refresh status".to_string(), 
+            detail: RuleDetail::Function(staticrule::status), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },

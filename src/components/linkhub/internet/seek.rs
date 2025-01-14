@@ -55,7 +55,7 @@ fn store_resource(resource: InternetResource) -> Option<()> {
     if i_rs.get(name).is_some() {return None;}
     
     info!("store internet resource: {}", name);
-    i_rs.insert(name.to_string(), Arc::new(resource));
+    i_rs.insert(name.to_string(), Arc::new(Mutex::new(resource)));
     Some(())
 }
 
@@ -67,7 +67,7 @@ fn message2resource(message: String) -> Result<InternetResource, Box<dyn Error>>
 async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>> {
     let intent_source = intent.get_resource().unwrap();
     let src = match INTERNET_RESOURCES.lock().unwrap().get(intent_source) {
-        Some(resource) => resource.get_address().clone(),
+        Some(resource) => resource.lock().unwrap().get_address().clone(),
         None => {
             warn!("resource have been removed");
             return Ok(0);
@@ -110,8 +110,9 @@ fn parse_message(message: &str) -> Message{
 
 fn find_resource_by_addr(addr: &SocketAddr) -> Option<String> {
     for (_, i) in INTERNET_RESOURCES.lock().unwrap().iter() {
-        if i.get_address() == addr {
-            return Some(i.get_name().to_string());
+        let i_r = i.lock().unwrap();
+        if i_r.get_address() == addr {
+            return Some(i_r.get_name().to_string());
         }
     }
     // "Intent input".to_string()
@@ -151,7 +152,7 @@ async fn message_handler(message: &str, src: SocketAddr) -> Result<(), Box<dyn E
             // tokio::spawn(async {
             // TODO make here multithread
             match handler(intent).await {
-                JudgeResult::Reject => reject_intent(r.unwrap(), &m.get_body()).await?,
+                JudgeResult::Reject(e) => reject_intent(r.unwrap(), &e).await?,
                 _ => (),
             };
             // });
@@ -202,7 +203,8 @@ async fn message_handler(message: &str, src: SocketAddr) -> Result<(), Box<dyn E
 
 async fn send_heartbeat() -> Result<(), Box<dyn Error>> {
     for (name, resource) in INTERNET_RESOURCES.lock().unwrap().iter() {
-        let address = resource.get_address();
+        let r = resource.lock().unwrap();
+        let address = r.get_address();
         let m = Message::new(MessageType::Heartbeat, "".to_string(), None);
         let m_json = serde_json::to_string(&m)?;
         match get_udp!().try_send_to(&m_json.as_bytes(), *address) {
@@ -233,7 +235,8 @@ async fn send_heartbeat() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub async fn send_message_internet(r: &InternetResource, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+pub async fn send_message_internet(r: Arc<std::sync::Mutex<InternetResource>>, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+    let r = r.lock().unwrap();
     let addr = r.get_address();
     let reject = if r.is_interpreter_none() {
         let m = Message::new(i_type, i.to_string(), id);

@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt, time::Duration};
 use bluer::{
     Address, Device, DeviceProperty, 
     gatt::remote::{Characteristic, Service}
@@ -17,6 +17,12 @@ pub struct BluetoothResource {
     props: Vec<DeviceProperty>,
     service: Option<Service>,
     char: Option<Characteristic>,
+}
+
+impl fmt::Display for BluetoothResource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}/{}/{};", self.get_name(), self.get_description(), self.display_status())
+    }
 }
 
 impl BluetoothResource {

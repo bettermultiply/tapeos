@@ -1,4 +1,4 @@
-use std::{error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, thread::sleep, time, str};
+use std::{error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, time, str};
 
 use log::{info, warn};
 use tapeos::{
@@ -42,7 +42,7 @@ async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dy
     
     loop {
         
-        match send_message(&socket, &tape_clone, Message::new(MessageType::Intent, "store my name: BM".to_string(), None)) {
+        match send_message(&socket, &tape_clone, Message::new(MessageType::Intent, "store my name: BM".to_string(), None)).await {
             Err(_e) => continue,
             _ => (),
         }
@@ -52,7 +52,6 @@ async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dy
                 _ => (),
             }
             info!("Input didnt get info");
-            sleep(time::Duration::from_secs(2));
         }
         break;
     }
@@ -67,7 +66,7 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
     let mut buf = [0; 1024];
     loop {
         // waiting for intent
-        match socket.try_recv_from(&mut buf) {
+        match socket.recv_from(&mut buf).await {
             Ok((amt, src)) => {
                 if src != tape { continue; }
 
@@ -80,7 +79,7 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                             let m = Message::new(MessageType::Response, "Over".to_string(), m.get_id());
                             // let m = Message::new(MessageType::Response, "".to_string(), m.get_id());
                             
-                            match send_message(&socket, &tape_clone, m) {
+                            match send_message(&socket, &tape_clone, m).await {
                                 Err(_e) => continue,
                                 _ => (),
                             }
@@ -92,15 +91,13 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                                 },
                                 _ => (),
                             }
-                            sleep(time::Duration::from_secs(1));
                         }
                     },
                     _ => { warn!("do not support such intent: {} port: {}", m.get_body(), port); }
                 }    
             },
-            Err(_e) => {
-                // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
-                sleep(time::Duration::from_micros(1));
+            Err(e) => {
+                warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e);
             },
         }
     }
@@ -134,18 +131,16 @@ fn parse_message(v: &[u8]) -> Message {
     }
 }
 
-fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: Message) -> Result<u8, Box<dyn Error>> {
+async fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: Message) -> Result<u8, Box<dyn Error>> {
 
     let m_json = serde_json::to_string(&m)?;
 
-    match socket.try_send_to(&m_json.as_bytes().to_vec(), *tape_clone) {
+    match socket.send_to(&m_json.as_bytes().to_vec(), *tape_clone).await {
         Ok(_) => {
             info!("send message successfully: {}, {}", tape_clone.port(), m_json);
-            sleep(time::Duration::from_secs(1));
         },
         Err(e) => {
-            // warn!("Failed send to {}: {}, retry later", TAPE_ADDRESS, e);
-            sleep(time::Duration::from_secs(1));
+            warn!("Failed send to {}: {}, retry later", TAPE_ADDRESS, e);
             return Err(Box::new(e));
         }
     }
@@ -168,7 +163,7 @@ async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSock
     let m_json = serde_json::to_string(&m)?;
 
     loop {
-        match socket.try_send_to(&m_json.as_bytes().to_vec(), tape_clone) {
+        match socket.send_to(&m_json.as_bytes().to_vec(), tape_clone).await {
             Ok(r) => {
                 info!("send register information successfully: {}", r);
             },
@@ -176,19 +171,17 @@ async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSock
                 warn!("Failed to register to {}: {}, retry later", TAPE_ADDRESS, e);
             }
         }
-        sleep(time::Duration::from_secs(2));
         match recv_message(&socket, &tape, "register successfully").await {
             Ok(0) => break,
             _ => ()
         }
-        sleep(time::Duration::from_secs(1));
     }
     Ok((socket, tape, tape_clone))
 }
 
 async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> Result<u8, Box<dyn Error>> {
     let mut buf = [0; 1024];
-    match socket.try_recv_from(&mut buf) {
+    match socket.recv_from(&mut buf).await {
         Ok((amt, src)) => {
             if src != *tape {warn!("source error");  return Ok(1); }
 
@@ -211,9 +204,8 @@ async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> R
                 },
             }
         },
-        Err(_e) => {
-            // warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e); 
-            sleep(time::Duration::from_micros(1));
+        Err(e) => {
+            warn!("Failed to received from {}: {}, retry later", TAPE_ADDRESS, e); 
         },
     }
     Ok(1)

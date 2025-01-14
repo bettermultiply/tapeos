@@ -22,7 +22,6 @@ pub enum JudgeResult {
 
 // preprocess the intent.
 pub async fn process(intent: &Intent) -> JudgeResult {
-    println!("process: ");
     println!("process: Judge the intent: {}", intent.get_description());
     
     if filter(intent).await {

@@ -20,7 +20,7 @@ use log::info;
 
 use crate::{base::{intent::Intent, message::{Message, MessageType}}, components::linkhub::{bluetooth, internet, wifi}};
 use crate::base::resource::Resource;
-use super::{bluetooth::resource::BluetoothResource, internet::{resource::InternetResource, seek::SOCKET}, waiter::{ResourceType, TAPE}};
+use super::{bluetooth::resource::BluetoothResource, internet::{resource::InternetResource, seek::send_message_internet}, waiter::{ResourceType, TAPE}};
 
 #[allow(dead_code)]
 enum SeekMethod {
@@ -31,16 +31,18 @@ enum SeekMethod {
     NFC,
 }
 
+type ResourcePool<T> = Mutex<HashMap<String, Arc<T>>>;
+type Queue<T> = Mutex<Vec<T>>;
+
 const SEEK_METHOD: SeekMethod = SeekMethod::Internet;
 lazy_static! {
     // we use these resource seperately for different seeker.
     // pub static ref RESOURCES: Mutex<Vec<Arc<ResourceType>>> = Mutex::new(Vec::new());
-    pub static ref INTERNET_RESOURCES: Mutex<HashMap<String, Arc<InternetResource>>> = Mutex::new(HashMap::new());
-    pub static ref BLUETOOTH_RESOURCES: Mutex<HashMap<String, Arc<BluetoothResource>>> = Mutex::new(HashMap::new());
+    pub static ref INTERNET_RESOURCES: ResourcePool<InternetResource>= Mutex::new(HashMap::new());
+    pub static ref BLUETOOTH_RESOURCES: ResourcePool<BluetoothResource> = Mutex::new(HashMap::new());
     // ...
-    pub static ref SUBINTENT_QUEUE: Mutex<Vec<Intent>> = Mutex::new(Vec::new());
-    pub static ref INTENT_QUEUE: Mutex<Vec<Intent>> = Mutex::new(Vec::new());
-    pub static ref RESPONSE_QUEUE: Mutex<Vec<HashMap<String, String>>> = Mutex::new(Vec::new());
+    pub static ref INTENT_QUEUE: Queue<Intent> = Mutex::new(Vec::new());
+    pub static ref RESPONSE_QUEUE: Queue<HashMap<String, String>> = Mutex::new(Vec::new());
     pub static ref SEEK_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref SEEK_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
 }
@@ -106,20 +108,7 @@ pub fn get_resource_status_str(name: &str) -> String {
     "".to_string()
 }
 
-async fn send_message_internet(r: &InternetResource, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
-    let addr = r.get_address();
-    let reject = if r.is_interpreter_none() {
-        let m = Message::new(i_type, i.to_string(), id);
-        serde_json::to_string(&m)?
-    } else {
-        let id = if id.is_none() {""} else {&(id.unwrap().to_string() + ":")};
-        i_type.to_string() + ":" + id + i
-    };
-    let data: Vec<u8> = reject.as_bytes().to_vec();
-    SOCKET.lock().unwrap().as_ref().unwrap().send_to(&data, addr).await?;
-    info!("message send");
-    Ok(())
-}
+
 
 async fn send_message_bluetooth(r: &BluetoothResource, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
     let char = r.get_char().as_ref().unwrap();

@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub async fn disassembler(intent: &mut Intent) -> Option<()> {
-    println!("disassembler: Start to disassemble intent");
+    info!("disassembler: Start to disassemble intent");
     let sub_intents: Vec<SubIntent>;
     let mut tries_count = 3;
     let mut last_outcome = "".to_string();
@@ -18,7 +18,7 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
                 intent.get_description(), 
                 last_outcome.as_str()
             ).await;
-
+            
         println!("disassembler: rough_intent: {}", rough_intent);
         
         last_outcome = rough_intent.clone();

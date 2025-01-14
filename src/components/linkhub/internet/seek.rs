@@ -1,10 +1,10 @@
-use std::time;
+// use std::time;
 use std::{
     str,
     sync::Arc,
     sync::Mutex,
     error::Error,
-    thread::sleep,
+    // thread::sleep,
     net::SocketAddr,
 };
 use log::{info, error, warn};
@@ -31,6 +31,11 @@ use crate::{
     },
 };
 
+macro_rules! get_udp {
+    () => {
+        SOCKET.lock().unwrap().as_ref().unwrap()
+    }
+}
 
 pub const TAPE_ADDRESS: &str = "127.0.0.1:8888";
 lazy_static! {
@@ -70,7 +75,7 @@ async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>> {
     };
     let m = Message::new(MessageType::Response, "Success".to_string(), None);
     let m_json = serde_json::to_string(&m)?;
-    SOCKET.lock().unwrap().as_ref().unwrap().send_to(&m_json.as_bytes().to_vec(), src).await?;
+    get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
     intent.complete();
     Ok(intent.get_id())
 }
@@ -161,7 +166,8 @@ async fn message_handler(message: &str, src: SocketAddr) -> Result<(), Box<dyn E
             let m = Message::new(MessageType::Response, m_body.to_string(), None);
             let m_json = serde_json::to_string(&m)?;
             info!("send to src: {}", src);
-            SOCKET.lock().unwrap().as_ref().unwrap().send_to(&m_json.as_bytes().to_vec(), src).await?;
+            
+            get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
         },
         MessageType::Response => {
             info!("Get Response: {}", m.get_body());
@@ -169,8 +175,7 @@ async fn message_handler(message: &str, src: SocketAddr) -> Result<(), Box<dyn E
             
             let m = Message::new(MessageType::Response, "Success".to_string(), None);
             let m_json = serde_json::to_string(&m)?;
-            SOCKET.lock().unwrap().as_ref().unwrap().send_to(&m_json.as_bytes().to_vec(), src).await?;
-            sleep(time::Duration::from_secs(1));
+            get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
             info!("Send Over: {}", m.get_body());
         },
         MessageType::Reject => {
@@ -195,19 +200,20 @@ async fn message_handler(message: &str, src: SocketAddr) -> Result<(), Box<dyn E
     Ok(())
 }
 
-fn send_heartbeat() -> Result<(), Box<dyn Error>> {
+async fn send_heartbeat() -> Result<(), Box<dyn Error>> {
     for (name, resource) in INTERNET_RESOURCES.lock().unwrap().iter() {
         let address = resource.get_address();
         let m = Message::new(MessageType::Heartbeat, "".to_string(), None);
         let m_json = serde_json::to_string(&m)?;
-        match SOCKET.lock().unwrap().as_ref().unwrap().try_send_to(&m_json.as_bytes(), *address) {
+        match get_udp!().try_send_to(&m_json.as_bytes(), *address) {
             Ok(_) => info!("Heartbeat sent to {}", address),
             Err(e) => warn!("Failed to send heartbeat to {}: {}", address, e),
         }
         let mut retry = 3;
         let mut heart_buf = [0; 1024];
+        
         loop {
-            match SOCKET.lock().unwrap().as_ref().unwrap().try_recv_from(&mut heart_buf) {
+            match get_udp!().recv_from(&mut heart_buf).await {
                 Ok(_) => {
                     info!("resource <{}> alive!", address);
                     break;
@@ -221,9 +227,24 @@ fn send_heartbeat() -> Result<(), Box<dyn Error>> {
                 INTERNET_RESOURCES.lock().unwrap().remove(name);
                 break;
             }
-            sleep(time::Duration::from_secs(1));
+            // sleep(time::Duration::from_secs(1));
         }
     }
+    Ok(())
+}
+
+pub async fn send_message_internet(r: &InternetResource, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+    let addr = r.get_address();
+    let reject = if r.is_interpreter_none() {
+        let m = Message::new(i_type, i.to_string(), id);
+        serde_json::to_string(&m)?
+    } else {
+        let id = if id.is_none() {""} else {&(id.unwrap().to_string() + ":")};
+        i_type.to_string() + ":" + id + i
+    };
+    let data: Vec<u8> = reject.as_bytes().to_vec();
+    get_udp!().send_to(&data, addr).await?;
+    info!("message send");
     Ok(())
 }
 
@@ -249,7 +270,7 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> Result<(), Box<dyn 
             _ = heartbeat_inter.tick() => {
                 // Check stored socket addresses are still valid
                 info!("sending heart beat to check whether resource alive.");
-                send_heartbeat()?;
+                send_heartbeat().await?;
             }
         }
     }    

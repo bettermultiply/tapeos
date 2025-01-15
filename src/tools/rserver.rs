@@ -1,0 +1,1 @@
+// register is used to build connection between TAPEs and resource cyber world

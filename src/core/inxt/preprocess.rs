@@ -13,7 +13,7 @@ use crate::{
     base::{
         errort::{BoxResult, JudgeError},
         intent::Intent, 
-        rule::{Rule, RuleDetail, RULES, STATIC_RULES}
+        rule::{Rule, RuleDetail, RULES, STATIC_RULES}, staticrule
     }, tools::llmq::prompt,
 };
 
@@ -120,7 +120,7 @@ async fn essential_judge(intent: &Intent) -> BoxResult<()> {
 // this judge is conducted depends on intent's attributes.
 async fn user_judge(intent: &Intent) -> BoxResult<()> {
     // TODO: Maybe rule can be specified for intent type.
-    for rule in RULES.lock().unwrap().iter_rules() {
+    for rule in RULES.lock().await.iter_rules() {
         match rule_judge(intent, rule).await {
             Ok(_) => (),
             Err(e) => return Err(e),
@@ -177,6 +177,17 @@ async fn rule_judge(intent: &Intent, rule: &Rule) -> BoxResult<()> {
                     return Err(Box::new(JudgeError::new("We do not accept such intent now.")));
                 }
             },
+        RuleDetail::AsyncF(s) => {
+            if *s == "rule" {
+                if staticrule::rule(intent).await {
+                    return Err(Box::new(JudgeError::new("Add rule error.")));
+                }
+            } else if *s == "status" {
+                if staticrule::status(intent).await {
+                    return Err(Box::new(JudgeError::new("refresh status error.")));
+                }
+            }
+        }
         _ => (),
     };
     Ok(())

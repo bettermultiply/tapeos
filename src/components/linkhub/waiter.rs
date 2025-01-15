@@ -5,10 +5,11 @@
 use std::{
     error::Error, 
     sync::{
-        mpsc::{Receiver, Sender}, Arc, Mutex
+        mpsc::{Receiver, Sender}, Arc
     }
 };
 use lazy_static::lazy_static;
+use tokio::sync::Mutex;
 use crate::components::linkhub::{bluetooth, wifi, internet};
 
 use super::{bluetooth::resource::BluetoothResource, internet::resource::InternetResource};
@@ -72,9 +73,9 @@ lazy_static! {
     pub static ref WAIT_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
 }
 
-pub fn channel_init(wait_send: Option<Sender<String>>, wait_recv: Option<Receiver<String>>) {
-    WAIT_SEND.lock().unwrap().replace(wait_send.unwrap());
-    WAIT_RECV.lock().unwrap().replace(wait_recv.unwrap());
+pub async fn channel_init(wait_send: Option<Sender<String>>, wait_recv: Option<Receiver<String>>) {
+    WAIT_SEND.lock().await.replace(wait_send.unwrap());
+    WAIT_RECV.lock().await.replace(wait_recv.unwrap());
 }
 
 
@@ -82,7 +83,7 @@ pub async fn wait() -> Result<(), Box<dyn Error>> {
     match WAIT_METHOD {
         WaitMethod::Bluetooth => bluetooth::wait::wait(),
         WaitMethod::Wifi => wifi::wait::wait(),
-        WaitMethod::Internet => internet::wait::wait().await,
+        WaitMethod::Internet => internet::wait::wait("".to_string(), "".to_string(), 0).await,
         _ => {
             return Err("Unsupported wait method".into());
         }

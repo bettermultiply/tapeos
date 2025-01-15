@@ -18,11 +18,12 @@ use bluer::{
 use log::warn;
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, BufReader},
+    sync::Mutex,
     time::{interval, sleep},
 };
 
 use std::{
-    collections::{BTreeMap, HashMap}, error::Error, sync::{Arc, Mutex}, time::Duration
+    collections::{BTreeMap, HashMap}, error::Error, sync::Arc, time::Duration
 };
 use futures::{future, pin_mut, StreamExt};
 
@@ -161,12 +162,12 @@ async fn wait_bluetooth_linux() -> BoxResult<()> {
                 }
             }
             // check device itself initiative action
-            _ = interval.tick(), if !TAPE.lock().unwrap().is_bluetooth() => {
+            _ = interval.tick(), if !TAPE.lock().await.is_bluetooth() => {
                 check_device();
             }
             // handle .
             request = async {
-                match WAIT_RECV.lock().unwrap().as_ref().unwrap().try_recv() {
+                match WAIT_RECV.lock().await.as_ref().unwrap().try_recv() {
                     Ok(v) => v,
                     Err(err) => {
                         println!("wait: receive waiter request failed: {}", &err);
@@ -244,7 +245,7 @@ fn parse_request(request: String) -> HashMap<String, String> {
 }
 
 async fn store_bluetooth_tape(device: Device) -> BoxResult<()> {
-    if !TAPE.lock().unwrap().is_none() {
+    if !TAPE.lock().await.is_none() {
         
     }
     let props = device.all_properties().await?;
@@ -261,7 +262,7 @@ async fn store_bluetooth_tape(device: Device) -> BoxResult<()> {
                         Some(service),
                         Some(cha),
                     ); 
-                    BTAPE.lock().unwrap().replace(Arc::new(Mutex::new(resource)));
+                    BTAPE.lock().await.replace(Arc::new(Mutex::new(resource)));
                     return Ok(());
                 }
             }
@@ -271,15 +272,15 @@ async fn store_bluetooth_tape(device: Device) -> BoxResult<()> {
 }
 
 async fn remove_tape(address: Address) -> bluer::Result<()> {
-    let mut tape_type = TAPE.lock().unwrap();
+    let mut tape_type = TAPE.lock().await;
     match tape_type.copy() {
         ResourceType::Bluetooth => {
             *tape_type = ResourceType::None;
-            let _ = BTAPE.lock().unwrap().take();
+            let _ = BTAPE.lock().await.take();
         },
         ResourceType::Internet => {
             *tape_type = ResourceType::None;
-            let _ = ITAPE.lock().unwrap().take();
+            let _ = ITAPE.lock().await.take();
         },
         ResourceType::None => {
             warn!("no Tape now");

@@ -46,7 +46,7 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
 }
 
 async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
-    let resource_info = get_all_resource_info();
+    let resource_info = get_all_resource_info().await;
     
     let s_prompt = 
 "I'll give you some information about Intent, Last Outcome(which is wrong or error format) and Available Resources.

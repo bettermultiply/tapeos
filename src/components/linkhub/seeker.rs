@@ -10,13 +10,14 @@
 use std::{
     error::Error, 
     sync::{
-        Arc, Mutex,
+        Arc,
         mpsc::{Sender, Receiver}
     }, 
     collections::HashMap
 };
 use lazy_static::lazy_static;
 use log::info;
+use tokio::sync::Mutex;
 
 use crate::{base::{errort::BoxResult, intent::Intent, message::{Message, MessageType}, resource::Status}, components::linkhub::{bluetooth, internet, wifi}};
 use crate::base::resource::Resource;
@@ -46,9 +47,9 @@ lazy_static! {
     pub static ref SEEK_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
 }
 
-pub fn channel_init(seek_send: Option<Sender<String>>, seek_recv: Option<Receiver<String>>) {
-    SEEK_SEND.lock().unwrap().replace(seek_send.unwrap());
-    SEEK_RECV.lock().unwrap().replace(seek_recv.unwrap());
+pub async fn channel_init(seek_send: Option<Sender<String>>, seek_recv: Option<Receiver<String>>) {
+    SEEK_SEND.lock().await.replace(seek_send.unwrap());
+    SEEK_RECV.lock().await.replace(seek_recv.unwrap());
 }
 
 // seek resources and subsystems depend on the SEEK_METHOD.
@@ -63,78 +64,78 @@ pub async fn seek() -> Result<(), Box<dyn Error>> {
     }
 }
 
-pub fn get_all_resource_info() -> String {
+pub async fn get_all_resource_info() -> String {
     let mut resources_info = String::new();
-    for (_, resource) in BLUETOOTH_RESOURCES.lock().unwrap().iter() {
-        let r = resource.lock().unwrap();
+    for (_, resource) in BLUETOOTH_RESOURCES.lock().await.iter() {
+        let r = resource.lock().await;
         resources_info += format!("{}/{}/{};", r.get_name(), r.get_description(), r.display_status()).as_str();
     }
-    for (_, resource) in INTERNET_RESOURCES.lock().unwrap().iter() {
-        let r = resource.lock().unwrap();
+    for (_, resource) in INTERNET_RESOURCES.lock().await.iter() {
+        let r = resource.lock().await;
         resources_info += format!("{}/{}/{};", r.get_name(), r.get_description(), r.display_status()).as_str();
     }
 
     resources_info
 }
 
-pub fn get_resource_info(name: &str) -> String {
-    match INTERNET_RESOURCES.lock().unwrap().get(name) {
+pub async fn get_resource_info(name: &str) -> String {
+    match INTERNET_RESOURCES.lock().await.get(name) {
         Some(r) => {
-            return format!("{}", r.lock().unwrap());
+            return format!("{}", r.lock().await);
         },
         None => (),
     }
-    match BLUETOOTH_RESOURCES.lock().unwrap().get(name) {
+    match BLUETOOTH_RESOURCES.lock().await.get(name) {
         Some(r) => {
-            return format!("{}", r.lock().unwrap());
+            return format!("{}", r.lock().await);
         },
         None => (),
     } 
     "".to_string()
 }
 
-pub fn get_resource_description(name: &str) -> String {
-    match INTERNET_RESOURCES.lock().unwrap().get(name) {
+pub async fn get_resource_description(name: &str) -> String {
+    match INTERNET_RESOURCES.lock().await.get(name) {
         Some(resource) => {
-            return resource.lock().unwrap().get_description().to_string();
+            return resource.lock().await.get_description().to_string();
         },
         None => (),
     }
-    match BLUETOOTH_RESOURCES.lock().unwrap().get(name) {
+    match BLUETOOTH_RESOURCES.lock().await.get(name) {
         Some(resource) => {
-            return resource.lock().unwrap().get_description().to_string();
+            return resource.lock().await.get_description().to_string();
         },
         None => (),
     } 
     "".to_string()
 }
 
-pub fn fresh_resource_status(name: &str, s: Status) -> bool {
-    match INTERNET_RESOURCES.lock().unwrap().get(name) {
+pub async fn fresh_resource_status(name: &str, s: Status) -> bool {
+    match INTERNET_RESOURCES.lock().await.get(name) {
         Some(r) => {
-            r.lock().unwrap().set_status(s.clone());
+            r.lock().await.set_status(s.clone());
         },
         None => (),
     }
-    match BLUETOOTH_RESOURCES.lock().unwrap().get(name) {
+    match BLUETOOTH_RESOURCES.lock().await.get(name) {
         Some(r) => {
-            r.lock().unwrap().set_status(s.clone());
+            r.lock().await.set_status(s.clone());
         },
         None => (),
     } 
     false
 }
 
-pub fn get_resource_status_str(name: &str) -> String {
-    match INTERNET_RESOURCES.lock().unwrap().get(name) {
+pub async fn get_resource_status_str(name: &str) -> String {
+    match INTERNET_RESOURCES.lock().await.get(name) {
         Some(resource) => {
-            return resource.lock().unwrap().display_status().to_string();
+            return resource.lock().await.display_status().to_string();
         },
         None => (),
     }
-    match BLUETOOTH_RESOURCES.lock().unwrap().get(name) {
+    match BLUETOOTH_RESOURCES.lock().await.get(name) {
         Some(resource) => {
-            return resource.lock().unwrap().display_status().to_string();
+            return resource.lock().await.display_status().to_string();
         },
         None => (),
     } 
@@ -143,8 +144,8 @@ pub fn get_resource_status_str(name: &str) -> String {
 
 
 
-async fn send_message_bluetooth(r: Arc<std::sync::Mutex<BluetoothResource>>, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
-    let r = r.lock().unwrap();
+async fn send_message_bluetooth(r: Arc<Mutex<BluetoothResource>>, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+    let r = r.lock().await;
     let char = r.get_char().as_ref().unwrap();
     let reject = if r.is_interpreter_none() {
         let m = Message::new(i_type, i.to_string(), id);
@@ -160,7 +161,7 @@ async fn send_message_bluetooth(r: Arc<std::sync::Mutex<BluetoothResource>>, i: 
 }
 
 pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Box<dyn Error>> {
-    let r_m = INTERNET_RESOURCES.lock().unwrap();
+    let r_m = INTERNET_RESOURCES.lock().await;
     let r = r_m.get(&resource_name);
     if r.is_some() {
         match send_message_internet(Arc::clone(r.unwrap()), intent, MessageType::Reject, None).await {
@@ -170,7 +171,7 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Bo
     }
     let _ = r;
 
-    let r_m = BLUETOOTH_RESOURCES.lock().unwrap();
+    let r_m = BLUETOOTH_RESOURCES.lock().await;
     let r = r_m.get(&resource_name);
     if r.is_some() {
         match send_message_bluetooth(Arc::clone(r.unwrap()), intent, MessageType::Reject, None).await {
@@ -181,15 +182,15 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Bo
     let _ = r;
     
     if resource_name == "TAPE" {
-        match TAPE.lock().unwrap().copy() {
+        match TAPE.lock().await.copy() {
             ResourceType::Bluetooth => {
-                match send_message_bluetooth(Arc::clone(BTAPE.lock().unwrap().as_ref().unwrap()), intent, MessageType::Reject, None).await {
+                match send_message_bluetooth(Arc::clone(BTAPE.lock().await.as_ref().unwrap()), intent, MessageType::Reject, None).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }
             },
             ResourceType::Internet => {
-                match send_message_internet(Arc::clone(&ITAPE.lock().unwrap().as_ref().unwrap()), intent, MessageType::Reject, None).await {
+                match send_message_internet(Arc::clone(&ITAPE.lock().await.as_ref().unwrap()), intent, MessageType::Reject, None).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }
@@ -202,7 +203,7 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Bo
 }
 
 pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> BoxResult<()> {
-    let r_m = INTERNET_RESOURCES.lock().unwrap();
+    let r_m = INTERNET_RESOURCES.lock().await;
     let r = r_m.get(&resource_name);
     if r.is_some() {
         match send_message_internet(Arc::clone(r.unwrap()), intent, MessageType::Intent, Some(id)).await {
@@ -212,7 +213,7 @@ pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> BoxRes
     }
     let _ = r;
 
-    let r_m = BLUETOOTH_RESOURCES.lock().unwrap();
+    let r_m = BLUETOOTH_RESOURCES.lock().await;
     let r = r_m.get(&resource_name);
     if r.is_some() {
         match send_message_bluetooth(Arc::clone(r.unwrap()), intent, MessageType::Intent, Some(id)).await {
@@ -223,16 +224,16 @@ pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> BoxRes
     let _ = r; 
 
     if resource_name == "TAPE" {
-        match TAPE.lock().unwrap().copy() {
+        match TAPE.lock().await.copy() {
             ResourceType::Bluetooth => {
-                match send_message_bluetooth(Arc::clone(BTAPE.lock().unwrap().as_ref().unwrap()), intent, MessageType::Intent, Some(id)).await {
+                match send_message_bluetooth(Arc::clone(BTAPE.lock().await.as_ref().unwrap()), intent, MessageType::Intent, Some(id)).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }
             },
             ResourceType::Internet => {
                 // TODO: may error here.
-                match send_message_internet(Arc::clone(&ITAPE.lock().unwrap().as_ref().unwrap()), intent, MessageType::Intent, Some(id)).await {
+                match send_message_internet(Arc::clone(&ITAPE.lock().await.as_ref().unwrap()), intent, MessageType::Intent, Some(id)).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }

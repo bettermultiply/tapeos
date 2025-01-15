@@ -27,14 +27,14 @@ pub fn reject(intent: &Intent) -> bool {
     intent.get_intent_type() == &IntentType::Reject
 }
 
-pub fn rule(intent: &Intent) -> bool {
-    match try_add2rule(intent.get_description()) {
+pub async fn rule(intent: &Intent) -> bool {
+    match try_add2rule(intent.get_description()).await {
         Ok(_) => false,
         Err(_) => true,
     }
 }
 
-fn try_add2rule(i: &str) -> BoxResult<()> {
+async fn try_add2rule(i: &str) -> BoxResult<()> {
     // parse the rule
     let rule: TransRule = serde_json::from_str(i)?;
     let r_detail = match rule.detail {
@@ -56,19 +56,19 @@ fn try_add2rule(i: &str) -> BoxResult<()> {
         },
     };
     let r = Rule::new(rule.name, rule.description, r_detail, rule.valid_time);
-    RULES.lock().unwrap().add_rule(r);
+    RULES.lock().await.add_rule(r);
     Ok(())
 }
 
-pub fn status(intent: &Intent) -> bool {
-    match try_fresh2status(intent.get_description(), intent.get_resource().unwrap()) {
+pub async fn status(intent: &Intent) -> bool {
+    match try_fresh2status(intent.get_description(), intent.get_resource().unwrap()).await {
         Ok(_) => false,
         Err(_) => true,
     }
 }
 
-fn try_fresh2status(i: &str, name: &str) -> BoxResult<()> {
+async fn try_fresh2status(i: &str, name: &str) -> BoxResult<()> {
     let status: Status = serde_json::from_str(i)?;
-    fresh_resource_status(name, status);
+    fresh_resource_status(name, status).await;
     Ok(())
 }

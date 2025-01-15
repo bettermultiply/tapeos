@@ -75,8 +75,8 @@ async fn score_by_ai(sub_intent: &str, resource: &str) -> i32 {
         sub_intent: {sub_intent}
         resource: {},{}
         ",
-        get_resource_description(resource),
-        get_resource_status_str(resource)
+        get_resource_description(resource).await,
+        get_resource_status_str(resource).await
         ).as_str()
     ).await;
     score.parse::<i32>().unwrap()

@@ -444,6 +444,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_more"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a9b99b9cbbe49445b21764dc0625032a89b145a2642e67603e1c936f5458d05"
+dependencies = [
+ "derive_more-impl",
+]
+
+[[package]]
+name = "derive_more-impl"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "unicode-xid",
+]
+
+[[package]]
 name = "displaydoc"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -642,6 +663,25 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
+]
+
+[[package]]
+name = "genai"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29ba18000c9910566e0cc1281302033ecff9186a1d650975aadbb06ec2f2c4f7"
+dependencies = [
+ "bytes",
+ "derive_more",
+ "eventsource-stream",
+ "futures",
+ "reqwest",
+ "reqwest-eventsource",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "value-ext",
 ]
 
 [[package]]
@@ -1915,12 +1955,14 @@ dependencies = [
 name = "tapeos"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-openai",
  "bluer",
  "chrono",
  "deepseek-api-client",
  "env_logger",
  "futures",
+ "genai",
  "idgenerator",
  "lazy_static",
  "log",
@@ -2161,6 +2203,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb9e6ca4f869e1180728b7950e35922a7fc6397f7b641499e8f3ef06e50dc83"
 
 [[package]]
+name = "unicode-xid"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2203,6 +2251,17 @@ checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
 dependencies = [
  "getrandom",
  "serde",
+]
+
+[[package]]
+name = "value-ext"
+version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2561a31f6267fc8d139ec0edb1782945406719abe82fa95afcf29f9f4c2b818"
+dependencies = [
+ "derive_more",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -12,7 +12,6 @@ async fn main() {
     env_logger::init();
     init_id_generator();
 
-
     // let intent = Intent::new("store my name".to_string(), IntentSource::Resource, IntentType::Intent, None);
     tokio::spawn(async {
         let _ = register("MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 8001).await;
@@ -30,7 +29,6 @@ async fn main() {
     });
 
     let _ = seek().await;
-
     
     // intent::handler(intent).await;
     println!("main: Try ended");
@@ -41,13 +39,15 @@ async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dy
     let (socket, tape, tape_clone)=send_register(name, desc, port).await?;
     
     loop {
-        
-        match send_message(&socket, &tape_clone, Message::new(MessageType::Intent, "store my name: BM".to_string(), None)).await {
+
+        let m = Message::new(MessageType::Intent, "store my name: BM".to_string(), None);
+        match send_message(&socket, &tape_clone, m).await {
             Err(_e) => continue,
             _ => (),
         }
         loop {
-            match recv_message(&socket, &tape, "intent solve successfully").await {
+            let content = "intent solve successfully";
+            match recv_message(&socket, &tape, content).await {
                 Ok(0) => {break},
                 _ => (),
             }

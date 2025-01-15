@@ -1,7 +1,7 @@
 // in this file, we will store rules for judging the intent.
 
 use std::{
-    collections::HashMap, path::PathBuf, sync::{Arc, LazyLock, Mutex}, time::{Duration, Instant}
+    collections::HashMap, path::PathBuf, sync::{Arc, LazyLock}, time::{Duration, Instant}
 };
 use chrono::Weekday;
 use lazy_static::lazy_static;
@@ -12,16 +12,17 @@ use crate::{
     base::intent::Intent,
     base::staticrule,
 };
+use tokio::sync::Mutex;
 
 lazy_static! {
     pub static ref RULES: Arc<Mutex<RuleSet>> = Arc::new(Mutex::new(RuleSet::new()));
-
 }
 
 // judge whether to accept the intent.
 // actually rule means not to do something.
 pub enum RuleDetail {
     Function(fn(&Intent) -> bool),
+    AsyncF(String),
     Program(PathBuf),
     Prompt(String),
     Source(IntentSource), // based on the source of the intent.
@@ -199,7 +200,7 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             id: 501,
             name: "rule".to_string(), 
             description: "set new rule".to_string(), 
-            detail: RuleDetail::Function(staticrule::rule), 
+            detail: RuleDetail::AsyncF("rule".to_string()), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
@@ -210,7 +211,7 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             id: 502,
             name: "status".to_string(), 
             description: "refresh status".to_string(), 
-            detail: RuleDetail::Function(staticrule::status), 
+            detail: RuleDetail::AsyncF("status".to_string()), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },

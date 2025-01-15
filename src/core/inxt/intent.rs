@@ -33,7 +33,7 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
         Some(_) => {
         },  
         None => {
-            match execute(&intent) {
+            match execute(intent.get_description()) {
                 // TODO special execution here.
                 Ok(_) => (),
                 Err(err) => {
@@ -52,14 +52,14 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
 
     // complete should report completion to tape monitor.
     // intent.complete();
-    INTENT_QUEUE.lock().unwrap().push(intent);
+    INTENT_QUEUE.lock().await.push(intent);
     JudgeResult::Accept
 
 }
 
 // execute is used to execute the intent route to itself.
-pub fn execute(intent: &Intent) -> Result<(), Box<dyn Error>> {
-    random_execute(intent.get_description())
+pub fn execute(intent: &str) -> Result<(), Box<dyn Error>> {
+    random_execute(intent)
 }
 
 pub fn random_execute(intent: &str) -> Result<(), Box<dyn Error>> {

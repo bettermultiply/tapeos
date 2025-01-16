@@ -21,7 +21,12 @@ pub async fn prompt(s_prompt: &str, u_prompt: &str) -> String {
     
     let client = Client::builder().with_auth_resolver(auth_resolver).build();
 
-	let chat_res = client.exec_chat(MODEL, chat_req.clone(), None).await.unwrap();
+	for _ in 0..3 {
+		match client.exec_chat(MODEL, chat_req.clone(), None).await {
+			Ok(r) => return r.content_text_as_str().unwrap_or("NO ANSWER").to_string(),
+			Err(_) => (),
+		}
+	}
 	
-    chat_res.content_text_as_str().unwrap_or("NO ANSWER").to_string()
+    "".to_string()
 }

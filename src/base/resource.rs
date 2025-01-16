@@ -31,6 +31,7 @@ pub trait Resource: Send + Sync {
     fn get_description(&self) -> &str;
     fn get_address(&self) -> ResourceAddress;
     fn get_status(&mut self) -> &mut Status;
+    fn get_interpreter(&self) -> &Interpreter;
     fn display_status(&self) -> String;
 
     fn set_status(&mut self, status: Status);
@@ -76,7 +77,7 @@ impl Status {
         self.aviliability
     }
 
-    fn get_position(&self) -> &Position {
+    pub fn get_position(&self) -> &Position {
         &self.position
     }
 
@@ -98,9 +99,9 @@ impl Status {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[allow(unused)]
 pub struct Position {
-    x: f32,
-    y: f32,
-    z: f32,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 } // TODO: make three dimension more flexible,
     // so that it can be used to describe discrete position like floor and room.
 

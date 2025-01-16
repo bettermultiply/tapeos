@@ -151,6 +151,7 @@ async fn send_message_bluetooth(r: Arc<Mutex<BluetoothResource>>, i: &str, i_typ
         let m = Message::new(i_type, i.to_string(), id);
         serde_json::to_string(&m)?
     } else {
+        // TODO
         let id = if id.is_none() {""} else {&(id.unwrap().to_string() + ":")};
         i_type.to_string() + ":" + id + i
     };

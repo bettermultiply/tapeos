@@ -21,21 +21,38 @@ async fn route_intent(resource_name: &str, intent: &str, id: i64) -> BoxResult<(
 }
 
 pub async fn reroute(s_intent: &mut SubIntent)  -> BoxResult<()> {
-    let address = select_resource(&s_intent).await;
-    s_intent.set_selected_resource(address.to_string());
+    let name = select_resource(& s_intent).await;
+    let s = name.to_string().clone();
+    s_intent.set_selected_resource(s.clone());
+    s_intent.remove_resource(s);
     let resource = s_intent.get_selected_resource().unwrap();
     route_intent(resource, s_intent.get_description(), s_intent.get_id()).await
+}
+
+pub async fn route_all(s_intent: &mut SubIntent)  -> BoxResult<()> {
+
+    for r in s_intent.iter_available_resources() {
+    route_intent(r, s_intent.get_description(), s_intent.get_id()).await?;
+    }
+    s_intent.remove_resource_all();
+    Ok(())
 }
 
 // the distributer will distribute the sub-intents from disassembler to the corresponding resource or subsystem.
 pub async fn router(i: &mut Intent) {
     info!("router: Start to router intent");
-    for s_intent in i.iter_sub_intent() {
-        for _ in 0..RETRY_COUNT {
-            match reroute(s_intent).await {
-                Ok(_) => break,
-                Err(_) => continue
-            };
+    if i.get_emergency() {
+        for s_intent in i.iter_sub_intent() {
+            route_all(s_intent).await.unwrap();
+        }
+    } else {
+        for s_intent in i.iter_sub_intent() {
+            for _ in 0..RETRY_COUNT {
+                match reroute(s_intent).await {
+                    Ok(_) => break,
+                    Err(_) => continue
+                };
+            }
         }
     }
 }
@@ -53,7 +70,6 @@ async fn select_resource(s_intent: &SubIntent) -> &str {
     }
     best_resource
 }
-
 
 async fn score(sub_intent: &str, resource: &str) -> i32 {
     match SCORE_METHOD {

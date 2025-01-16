@@ -77,7 +77,6 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
                     random_execute(&m.get_body())?;
                         loop {
                             let m = Message::new(MessageType::Response, "Over".to_string(), m.get_id());
-                            // let m = Message::new(MessageType::Response, "".to_string(), m.get_id());
                             
                             match send_message(&socket, &tape_clone, m).await {
                                 Err(_e) => continue,

@@ -12,7 +12,6 @@ pub struct BluetoothResource {
     status: Status,
     interpreter: Interpreter, 
 
-
     device: Device,
     props: Vec<DeviceProperty>,
     service: Option<Service>,
@@ -94,6 +93,10 @@ impl Resource for BluetoothResource {
 
     fn set_description(&mut self, description: String) {
         self.description = description;
+    }
+
+    fn get_interpreter(&self) -> &Interpreter {
+        &self.interpreter
     }
 
     fn is_interpreter_none(&self) -> bool {

@@ -5,7 +5,7 @@ use rand::Rng;
 
 use crate::{
     base::intent::Intent, components::linkhub::seeker::{reject_intent, INTENT_QUEUE}, core::inxt::{
-        disassembler::disassembler, preprocess::{process, JudgeResult}, router::router, schedule::schedule_intent
+        disassembler::disassembler, monitor::monitor, preprocess::{process, JudgeResult}, router::router, schedule::schedule_intent
     }
 };
 
@@ -18,7 +18,7 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
     info!("handler: Start to execute intent");
 
     // preprocess the intent, including filter and special execution.
-    match process(&intent).await {
+    match process(&mut intent).await {
         JudgeResult::Execution => {
             return JudgeResult::Execution;
         },
@@ -47,12 +47,14 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
     schedule_intent(&intent);
 
     router(&mut intent).await;
+    let id = intent.get_id();
+    INTENT_QUEUE.lock().await.push(intent);
+    
 
-    // monitor(&mut intent).await;
+    monitor(id).await;
 
     // complete should report completion to tape monitor.
     // intent.complete();
-    INTENT_QUEUE.lock().await.push(intent);
     JudgeResult::Accept
 
 }

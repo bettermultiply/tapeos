@@ -21,7 +21,7 @@ lazy_static! {
 // judge whether to accept the intent.
 // actually rule means not to do something.
 pub enum RuleDetail {
-    Function(fn(&Intent) -> bool),
+    Function(fn(&mut Intent) -> bool),
     AsyncF(String),
     Program(PathBuf),
     Prompt(String),
@@ -212,6 +212,17 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             name: "status".to_string(), 
             description: "refresh status".to_string(), 
             detail: RuleDetail::AsyncF("status".to_string()), 
+            valid_time: Duration::from_secs(0),
+            created_time: Instant::now(),
+        },
+    ),
+    (
+        "reject", 
+        Rule {
+            id: 503,
+            name: "emergency".to_string(), 
+            description: "emergency".to_string(), 
+            detail: RuleDetail::Function(staticrule::emergency), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },

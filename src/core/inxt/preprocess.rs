@@ -24,7 +24,7 @@ pub enum JudgeResult {
 }
 
 // preprocess the intent.
-pub async fn process(intent: &Intent) -> JudgeResult {
+pub async fn process(intent: &mut Intent) -> JudgeResult {
     info!("process: Judge the intent: {}", intent.get_description());
     
     match filter(intent).await {
@@ -47,7 +47,7 @@ pub async fn process(intent: &Intent) -> JudgeResult {
 }
 
 // filter the unacceptible intent.
-async fn filter(intent: &Intent) -> BoxResult<()> {
+async fn filter(intent: &mut Intent) -> BoxResult<()> {
     match essential_judge(intent).await {
         Ok(_) => (),
         Err(e) => {
@@ -65,7 +65,7 @@ async fn filter(intent: &Intent) -> BoxResult<()> {
 }
 
 // special execution for the intent.
-async fn spec_exec(intent: &Intent) -> BoxResult<bool> {
+async fn spec_exec(intent: &mut Intent) -> BoxResult<bool> {
     
     let i = intent.get_description();
     let i_pair = i.split(":").collect::<Vec<&str>>();
@@ -92,7 +92,7 @@ async fn spec_exec(intent: &Intent) -> BoxResult<bool> {
 }
 
 // should be used to judge  every intent.
-async fn essential_judge(intent: &Intent) -> BoxResult<()> {
+async fn essential_judge(intent: &mut Intent) -> BoxResult<()> {
     info!("essential judge: ");
     
     // in essential part, all rule's will be hard coded.
@@ -118,7 +118,7 @@ async fn essential_judge(intent: &Intent) -> BoxResult<()> {
 }
 
 // this judge is conducted depends on intent's attributes.
-async fn user_judge(intent: &Intent) -> BoxResult<()> {
+async fn user_judge(intent: &mut Intent) -> BoxResult<()> {
     // TODO: Maybe rule can be specified for intent type.
     for rule in RULES.lock().await.iter_rules() {
         match rule_judge(intent, rule).await {
@@ -137,8 +137,8 @@ async fn user_judge(intent: &Intent) -> BoxResult<()> {
 //} else {
 //  judge result is false then allow intent to be executed.
 //}
-async fn rule_judge(intent: &Intent, rule: &Rule) -> BoxResult<()> {
-    
+async fn rule_judge(intent: &mut Intent, rule: &Rule) -> BoxResult<()> {
+    info!("rule: {}", rule.get_description());
     match rule.get_rule_detail() {
         RuleDetail::Source(intent_source) 
             => if intent.get_source() == intent_source { 

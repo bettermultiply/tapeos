@@ -21,6 +21,7 @@ pub enum MessageType {
     Finish,
     Register,
     Heartbeat,
+    Status,
     Unknown,
 }
 
@@ -33,6 +34,7 @@ impl Display for MessageType {
             MessageType::Finish => write!(f, "Finish"),
             MessageType::Register => write!(f, "Register"),
             MessageType::Heartbeat => write!(f, "Heartbeat"),
+            MessageType::Status => write!(f, "Status"),
             MessageType::Unknown => write!(f, "Unknown"),
         }
     }

@@ -1,8 +1,12 @@
 use chrono::Weekday;
+use log::info;
 
 use crate::base::intent::Intent;
 use crate::base::intent::IntentType;
+use crate::components::linkhub::internet::seek::SOCKET;
 use crate::components::linkhub::seeker::fresh_resource_status;
+use crate::components::linkhub::seeker::BLUETOOTH_RESOURCES;
+use crate::components::linkhub::seeker::INTERNET_RESOURCES;
 
 use super::errort::BoxResult;
 use super::errort::JudgeError;
@@ -23,14 +27,22 @@ pub static PRIVILEGE_PROMPT: &str = "
     if yes return true, else return false.
     intent: ";
 
-pub fn reject(intent: &Intent) -> bool {
+pub fn reject(intent: &mut Intent) -> bool {
     intent.get_intent_type() == &IntentType::Reject
+}
+
+pub fn emergency(intent: &mut Intent) -> bool {
+    if intent.get_description().contains("emergency") {
+        intent.set_emergency();
+        return true
+    }
+    false
 }
 
 pub async fn rule(intent: &Intent) -> bool {
     match try_add2rule(intent.get_description()).await {
-        Ok(_) => false,
-        Err(_) => true,
+        Ok(_) => true,
+        Err(_) => false,
     }
 }
 
@@ -62,8 +74,8 @@ async fn try_add2rule(i: &str) -> BoxResult<()> {
 
 pub async fn status(intent: &Intent) -> bool {
     match try_fresh2status(intent.get_description(), intent.get_resource().unwrap()).await {
-        Ok(_) => false,
-        Err(_) => true,
+        Ok(_) => true,
+        Err(_) => false,
     }
 }
 
@@ -71,4 +83,59 @@ async fn try_fresh2status(i: &str, name: &str) -> BoxResult<()> {
     let status: Status = serde_json::from_str(i)?;
     fresh_resource_status(name, status).await;
     Ok(())
+}
+
+pub async fn direct(intent: &Intent) -> bool {
+    let desc = intent.get_description();
+    let d_s = desc.split_once(":");
+    let (trick, s) = match d_s {
+        Some(s) => s,
+        None => return false, 
+    };
+    let d_s = s.split_once(":");
+    let (name, command) = match d_s {
+        Some(s) => s,
+        None => return false, 
+    };
+    if trick != "trick" {
+        return false
+    }
+    match directly_send(name, command).await {
+        Ok(()) => true,
+        Err(_) => false,
+    }
+}
+
+pub async fn directly_send(name: &str, command: &str) -> BoxResult<()> {
+
+    let r_m = INTERNET_RESOURCES.lock().await;
+    let r = r_m.get(name);
+    if r.is_some() {
+        let r = r.unwrap().lock().await;
+        let addr = r.get_address();
+        let data: Vec<u8> = command.as_bytes().to_vec();
+        SOCKET.lock().await.as_ref().unwrap().send_to(&data, addr).await?;
+        info!("message send");
+        return Ok(());
+    }
+    let _ = r;
+
+    let r_m = BLUETOOTH_RESOURCES.lock().await;
+    let r = r_m.get(name);
+    if r.is_some() {
+        let r = r.unwrap().lock().await;
+        let char = r.get_char().as_ref().unwrap();
+        let data: Vec<u8> = command.as_bytes().to_vec();
+        char.write(&data).await?;
+        info!("message send");
+        return Ok(());
+    }
+    let _ = r;
+
+    
+    Err(Box::new(JudgeError::new("")))
+    // match .await {
+        // Ok(_) => true,
+        // Err(_) => false,
+    // }
 }

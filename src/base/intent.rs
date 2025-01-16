@@ -1,5 +1,7 @@
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
+use std::time::Instant;
+
 use serde::{Deserialize, Serialize};
 
 use crate::tools::idgen::{self, IdType};
@@ -16,16 +18,18 @@ pub struct Intent {
     itype: IntentType,
     sub_intent: Vec<SubIntent>,
     reject_reason: Option<String>,
+    emergency: bool,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntentSource {
     Tape,
+    Input,
     Resource,
     Subsystem,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntentType {
     Intent,
     Response,
@@ -39,6 +43,7 @@ pub struct SubIntent {
     complete: bool,
     available_resources: Vec<String>,
     selected_resource: Option<String>,
+    routed: Instant,
 }
 
 impl Intent {
@@ -50,12 +55,26 @@ impl Intent {
             source, 
             itype, 
             resource, 
-            sub_intent: vec![] , 
-            reject_reason: None}
+            sub_intent: vec![], 
+            reject_reason: None,
+            emergency: false,
+        }
+    }
+
+    pub fn set_emergency(&mut self) {
+        self.emergency = true;
+    }
+
+    pub fn get_emergency(&self) -> bool {
+        self.emergency
     }
 
     pub fn get_id(&self) -> i64 {
         self.id
+    }
+
+    pub fn set_id(&mut self, id: i64) {
+        self.id = id
     }
 
     pub fn iter_sub_intent(&mut self) -> impl Iterator<Item = &mut SubIntent> {
@@ -98,23 +117,32 @@ impl Intent {
     pub fn get_intent_type(&self) -> &IntentType {
         &self.itype
     }
+
 }
 
 impl SubIntent {
     pub fn new(description: String, available_resources: Vec<String>) -> Self {
-        Self {id: idgen::generate_id(IdType::Intent), description, complete: false, available_resources, selected_resource: None }
+        Self {id: idgen::generate_id(IdType::Intent), description, complete: false, available_resources, selected_resource: None, routed: Instant::now()}
     }
 
     pub fn get_id(&self) -> i64 {
         self.id
     }
 
+    pub fn get_routed(&self) -> Instant {
+        self.routed.clone()
+    }
+
     pub fn iter_available_resources(&self) -> impl Iterator<Item = &String> {
         self.available_resources.iter()
     }
 
-    pub fn remove_resource(&mut self, address: String) {
-        self.available_resources.retain(|r| *r != address);
+    pub fn remove_resource(&mut self, name: String) {
+        self.available_resources.retain(|r| *r != name);
+    }
+
+    pub fn remove_resource_all(&mut self) {
+        self.available_resources.clear();
     }
 
     pub fn get_selected_resource(&self) -> Option<&String> {

@@ -3,7 +3,7 @@ use std::{error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, thread::sleep,
 
 use log::{info, warn};
 use crate::{
-    base::{errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::Status}, components::linkhub::{internet::{resource::InternetResource, seek::TAPE_ADDRESS}, waiter::TAPE}, core::inxt::intent::{execute, handler}
+    base::{errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::Status}, components::linkhub::{internet::{resource::InternetResource, seek::TAPE_ADDRESS}, waiter::{TAPE, TAPE_INTENT_QUEUEUE}}, core::inxt::intent::{execute, handler}
 };
 
 use tokio::{net::UdpSocket, time::interval};
@@ -36,7 +36,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
     ) = init(name, desc, port).await?;
     send_register(&socket, &tape_clone, &m_json).await;
     
-    let mut register = interval(time::Duration::from_secs(1));
+    let mut register = interval(time::Duration::from_secs(10));
 
     let mut buf = [0; 1024];
     let mut input_buf = [0; 1024];
@@ -49,13 +49,20 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
             Ok((amt, _))  = input_socket.recv_from(&mut input_buf) => {
                 match str::from_utf8(&buf[0..amt]) {
                     Ok(m_body) => {
-                        let m = Message::new(MessageType::Intent, m_body.to_string(), None);
+                        let i = Intent::new(m_body.to_string(), IntentSource::Input, IntentType::Intent, None);
+                        
+                        // we only send plain text intent so that the bandwidth cost will reduce
+                        let m = Message::new(MessageType::Intent, m_body.to_string(), Some(i.get_id()));
                         match send_message(&socket, &tape_clone, &m).await {
+                            Ok(_) => {
+                                TAPE_INTENT_QUEUEUE.lock().await.push(i);
+                            },
                             Err(_e) => (),
-                            _ => (),
                         }
                     },
-                    _ => (),
+                    _ => {
+                        warn!("Expect utf-8 String")
+                    },
                 } 
             }
             Ok((amt, src)) = socket.recv_from(&mut buf) => {
@@ -66,10 +73,21 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                 
                 let m: Message = parse_message(&buf[..amt]);
                 match m.get_type() {
+                    MessageType::Status => {
+                        status_report(&socket, &tape).await?
+                    }
                     MessageType::Heartbeat 
                     => heart_beat_report(&socket, &tape).await?,
                     MessageType::Finish => {
-
+                        let id = m.get_id().unwrap();
+                        let mut queue = TAPE_INTENT_QUEUEUE.lock().await; 
+                        let index = queue.iter().position(|i| i.get_id() == id);
+                        if index.is_none() {
+                            warn!("not intent here");
+                            continue;
+                        }
+                        let intent = queue.remove(index.unwrap());
+                        info!("Intent {} finished", intent.get_description());
                     }
                     MessageType::Response => {
                         match m.get_body().as_ref() {
@@ -85,6 +103,9 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                             "Finish Received" => {
                                 // intent finish.
                             },
+                            "Register First" => {
+
+                            }
                             _ => {
                                 warn!("Do not support such response now.");
                             },
@@ -156,6 +177,16 @@ async fn heart_beat_report(socket: &UdpSocket, tape: &SocketAddr) -> Result<(), 
     Ok(())
 }
 
+async fn status_report(socket: &UdpSocket, tape: &SocketAddr) -> Result<(), Box<dyn Error>>{
+    let s = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));
+    let s_json = serde_json::to_string(&s)?;
+    let h = Message::new(MessageType::Intent, s_json, None);
+    let h_json = serde_json::to_string(&h)?;
+    info!("heart beat alive");
+    socket.send_to(&h_json.as_bytes(), tape).await?;
+    Ok(())
+}
+
 fn parse_message(v: &[u8]) -> Message {
     let received_data = str::from_utf8(v).expect("Failed to convert to string");
     match serde_json::from_str(received_data) {
@@ -168,8 +199,7 @@ fn parse_message(v: &[u8]) -> Message {
     }
 }
 
-async fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: &Message) -> Result<u8, Box<dyn Error>> {
-
+async fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: &Message) -> Result<(), Box<dyn Error>> {
     let m_json = serde_json::to_string(m)?;
 
     match socket.send_to(&m_json.as_bytes().to_vec(), *tape_clone).await {
@@ -182,6 +212,6 @@ async fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: &Message) 
         }
     }
 
-    Ok(0)
+    Ok(())
 }
 

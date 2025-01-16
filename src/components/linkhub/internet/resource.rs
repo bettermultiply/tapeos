@@ -63,6 +63,10 @@ impl Resource for InternetResource {
         self.description = description;
     }
 
+    fn get_interpreter(&self) -> &Interpreter {
+        &self.interpreter
+    }
+
     fn is_interpreter_none(&self) -> bool {
         match self.interpreter {
             Interpreter::None => {true},

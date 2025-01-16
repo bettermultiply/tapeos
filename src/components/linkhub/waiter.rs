@@ -10,7 +10,7 @@ use std::{
 };
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
-use crate::components::linkhub::{bluetooth, wifi, internet};
+use crate::{base::intent::Intent, components::linkhub::{bluetooth, internet, wifi}};
 
 use super::{bluetooth::resource::BluetoothResource, internet::resource::InternetResource};
 
@@ -65,12 +65,16 @@ impl ResourceType {
 
 }
 
+type Queue<T> = Mutex<Vec<T>>;
+
 lazy_static! {
     pub static ref TAPE: Arc<Mutex<ResourceType>> = Arc::new(Mutex::new(ResourceType::None));
     pub static ref BTAPE: Arc<Mutex<Option<Arc<Mutex<BluetoothResource>>>>> = Arc::new(Mutex::new(None));
     pub static ref ITAPE: Arc<Mutex<Option<Arc<Mutex<InternetResource>>>>> = Arc::new(Mutex::new(None));
     pub static ref WAIT_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref WAIT_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
+ 
+    pub static ref TAPE_INTENT_QUEUEUE: Queue<Intent> = Mutex::new(vec![]);
 }
 
 pub async fn channel_init(wait_send: Option<Sender<String>>, wait_recv: Option<Receiver<String>>) {

@@ -1,6 +1,8 @@
 // record actions of the system.
 
+use log::info;
+
 pub fn record(action: String) {
     // TODO:
-    println!("record: {}", action);
+    info!("record: {}", action);
 }

@@ -94,6 +94,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
             }
             Ok((amt, src)) = socket.recv_from(&mut buf) => {
                 if src == server_addr {
+                    // info!("received");
                     let data = str::from_utf8(&buf[..amt])?;
                     let tape: RegisterServer = serde_json::from_str(&data)?;
                     tape_i = Some(tape.get_iaddr().clone());
@@ -125,7 +126,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                         match m.get_body().as_ref() {
                             "Registerd" => {
                                 *TAPE.lock().await = ResourceType::Internet;
-                                info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
+                                // info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
                             },
                             "Intent Duplicate" => {
 
@@ -194,7 +195,7 @@ async fn init(name: String, desc: String, port: u16) -> BoxResult<(UdpSocket, Ud
     // let tape_i = SocketAddr::new(IpA/ddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
-    let input_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port+100);
+    let input_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port+20000);
     let input_socket = UdpSocket::bind(input_addr).await.expect("Failed to bind to socket");
 
     let status = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));

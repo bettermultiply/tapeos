@@ -15,9 +15,11 @@ use tokio::{
 
 use crate::{
     base::{ 
-        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, resource::{Interpreter, Position, Resource}
+        intent::{Intent, IntentSource, IntentType}, resource::{Interpreter, Position, Resource}
     }, components::linkhub::{bluetooth::resource::BluetoothResource, seeker::{send_intent, BLUETOOTH_RESOURCES, RESPONSE_QUEUE, SEEK_RECV}}, core::inxt::intent::handler, tools::llmq
 };
+
+use crate::base::errort::BoxResult;
 
 #[allow(dead_code)]
 enum Platform {

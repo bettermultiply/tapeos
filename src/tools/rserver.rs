@@ -24,7 +24,6 @@ pub fn tape_server() {
                 // we should send two message: 
                 // 1. can it be a TAPE
                 // 2. its information so that we can match exactly.
-                info!("process {src}");
                 let data = match std::str::from_utf8(&buf[..amt]) {
                     Ok(s) => s,
                     Err(e) => {
@@ -39,7 +38,6 @@ pub fn tape_server() {
                         continue;
                     },
                 };
-                info!("process connect");
                 let mut best_suit: Option<&RegisterServer> = None;
                 for t in tapes.iter() {
                     if t.is_position_suit(&s) {

@@ -1,6 +1,6 @@
 // use std::time;
 use std::{
-    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, time::Instant
+    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, process::exit, str, sync::Arc, thread::sleep, time::Instant
 };
 use log::{info, error, warn};
 use tokio::{
@@ -69,7 +69,7 @@ pub async fn find_register(socket: &UdpSocket, tape: bool, position: ((f32, f32)
     let r = RegisterServer::new(tape, Some(iaddr), Some(oaddr), position);
     let r_json = serde_json::to_string(&r).unwrap();
     let addr = SocketAddr::new(ipv4, 8000);
-    info!("send server register {}", socket.local_addr().unwrap());
+    // info!("send server register {}", socket.local_addr().unwrap());
     socket.send_to(&r_json.as_bytes(), addr).await.unwrap();
 } 
 
@@ -238,12 +238,12 @@ async fn store_resource(resource: InternetResource) -> Option<()> {
     // info!("store internet resource: {}", name);
     i_rs.insert(name.to_string(), Arc::new(Mutex::new(resource)));
     // error!("now we have resource: {}", i_rs.len());
-    // if i_rs.len() == 10000 {
-    //     let now = NOW.lock().await.elapsed().as_secs_f64();
-    //     sleep(Duration::from_secs(2));
-    //     println!("{}", now);
-    //     exit(0);
-    // }
+    if i_rs.len() == 20000 {
+        let now = NOW.lock().await.elapsed().as_secs_f64();
+        sleep(Duration::from_secs(2));
+        println!("{}", now);
+        exit(0);
+    }
     Some(())
 }
 

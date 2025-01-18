@@ -1,5 +1,5 @@
 
-use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, str, thread::sleep, time};
+use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, str, thread::sleep, time::{self, Duration}};
 
 use log::{info, warn};
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
             resource::InternetResource, 
             seek::TAPE_ADDRESS
         }, 
-        waiter::{ResourceType, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
+        waiter::{ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
     }, 
     core::inxt::intent::{execute, handler}
 };
@@ -100,7 +100,9 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     tape_i = Some(tape.get_iaddr().clone());
                     tape_o = Some(tape.get_oaddr().clone());
                     send_register(&socket, &tape_i.unwrap(), &m_json).await;
+                    // println!("{port} register");
                     ITAPE.lock().await.lock().await.set_address(tape_i.unwrap().clone());
+                    sleep(Duration::from_micros(1));
                     continue;
                 }
                 if tape_o.is_none() {
@@ -125,7 +127,8 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     MessageType::Response => {
                         match m.get_body().as_ref() {
                             "Registerd" => {
-                                *TAPE.lock().await = ResourceType::Internet;
+                                // *TAPE.lock().await = ResourceType::Internet;
+                                return Ok(());
                                 // info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
                             },
                             "Intent Duplicate" => {
@@ -195,7 +198,7 @@ async fn init(name: String, desc: String, port: u16) -> BoxResult<(UdpSocket, Ud
     // let tape_i = SocketAddr::new(IpA/ddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
-    let input_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port+20000);
+    let input_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port+40000);
     let input_socket = UdpSocket::bind(input_addr).await.expect("Failed to bind to socket");
 
     let status = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));

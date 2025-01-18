@@ -1,8 +1,8 @@
-use std::{error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, time, str};
+use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, time, str};
 
 use log::{info, warn};
 use tapeos::{
-    base::{message::{Message, MessageType}, resource::Status}, components::linkhub::internet::{resource::InternetResource, seek::{seek, TAPE_ADDRESS}}, core::inxt::intent::random_execute, tools::idgen::init_id_generator
+    base::{errort::BoxResult, message::{Message, MessageType}, resource::Status}, components::linkhub::internet::{resource::InternetResource, seek::{seek, TAPE_ADDRESS}, wait::wait}, core::inxt::intent::random_execute, tools::idgen::init_id_generator
 };
 use tokio::net::UdpSocket;
 
@@ -14,17 +14,17 @@ async fn main() {
 
     // let intent = Intent::new("store my name".to_string(), IntentSource::Resource, IntentType::Intent, None);
     tokio::spawn(async {
-        let _ = register("MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 8001).await;
+        let _ = wait("MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 8001).await;
     });
     tokio::spawn(async {
-        let _ = register("MongoDB".to_string(), MONGO_DB_DESCRIPTION.to_string(), 8002).await;
+        let _ = wait("MongoDB".to_string(), MONGO_DB_DESCRIPTION.to_string(), 8002).await;
     });
     tokio::spawn(async {
-        let _ = register("GooGle Drive".to_string(), GOO_GLE_DRIVE_DESCRIPTION.to_string(), 8003).await;
+        let _ = wait("GooGle Drive".to_string(), GOO_GLE_DRIVE_DESCRIPTION.to_string(), 8003).await;
     });
 
     tokio::spawn(async move {
-        let _ = send_intent("Intent input".to_string(), INTENT_INPUT_DESCRIPTION.to_string(), 8004).await;
+        let _ = wait("Intent input".to_string(), INTENT_INPUT_DESCRIPTION.to_string(), 8004).await;
         
     });
 
@@ -34,7 +34,7 @@ async fn main() {
     println!("main: Try ended");
 }
 
-async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dyn Error>>{
+async fn send_intent(name: String, desc: String, port: u16) -> BoxResult<()>{
     
     let (socket, tape, tape_clone)=send_register(name, desc, port).await?;
     
@@ -59,7 +59,7 @@ async fn send_intent(name: String, desc: String, port: u16) -> Result<(), Box<dy
     Ok(())
 }
 
-async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn Error>>{
+async fn register(name: String, desc: String, port: u16) -> BoxResult<()>{
     
     let (socket, tape, tape_clone)=send_register(name, desc, port).await?;
 
@@ -102,15 +102,7 @@ async fn register(name: String, desc: String, port: u16) -> Result<(), Box<dyn E
     }
 }
 
-const MY_SQL_DESCRIPTION: &str = "MySQL can store, organize, and manage data in structured tables. It allows users to create, read, update, and delete data using SQL queries. It supports data sorting, filtering, and searching, and can handle complex operations like joining multiple tables. MySQL ensures data integrity through constraints, transactions, and indexing. It can manage large datasets, support multiple users simultaneously, and provide secure access control. Additionally, it enables backups, replication, and scalability for growing applications.";
-
-const MONGO_DB_DESCRIPTION: &str = "MongoDB is a NoSQL database that stores data in flexible, JSON-like documents instead of tables. It can handle unstructured or semi-structured data, making it ideal for dynamic or evolving data models. MongoDB allows you to store, query, and manage large volumes of data efficiently. It supports indexing for fast searches, horizontal scaling for handling big data, and replication for high availability. MongoDB also enables complex queries, aggregation, and real-time analytics, making it suitable for modern applications with diverse data needs.";
-
-const GOO_GLE_DRIVE_DESCRIPTION: &str = "Google Drive is a cloud-based storage service that allows you to store, share, and access files from anywhere. It can store documents, photos, videos, and other file types, and sync them across devices. You can create and edit files using Google Workspace tools like Docs, Sheets, and Slides directly within Drive. It supports file sharing with customizable permissions, collaboration in real-time, and version history to track changes. Google Drive also provides search functionality to quickly find files and integrates with other Google services and third-party apps.";
-
-const INTENT_INPUT_DESCRIPTION: &str = "Intent Input is a device which can get intent from user, but can not reveive any intent from other ways";
-
-async fn heart_beat_report(socket: &UdpSocket, tape: &SocketAddr) -> Result<(), Box<dyn Error>>{
+async fn heart_beat_report(socket: &UdpSocket, tape: &SocketAddr) -> BoxResult<()>{
     let h = Message::new(MessageType::Heartbeat, "".to_string(), None);
     let h_json = serde_json::to_string(&h)?;
     info!("heart beat alive");
@@ -130,7 +122,7 @@ fn parse_message(v: &[u8]) -> Message {
     }
 }
 
-async fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: Message) -> Result<u8, Box<dyn Error>> {
+async fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: Message) -> BoxResult<u8> {
 
     let m_json = serde_json::to_string(&m)?;
 
@@ -147,7 +139,7 @@ async fn send_message(socket: &UdpSocket, tape_clone: &SocketAddr, m: Message) -
     Ok(0)
 }
 
-async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSocket, SocketAddr, SocketAddr), Box<dyn Error>> {
+async fn send_register(name: String, desc: String, port: u16) -> BoxResult<(UdpSocket, SocketAddr, SocketAddr)> {
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
 
@@ -178,7 +170,7 @@ async fn send_register(name: String, desc: String, port: u16) -> Result<(UdpSock
     Ok((socket, tape, tape_clone))
 }
 
-async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> Result<u8, Box<dyn Error>> {
+async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> BoxResult<u8> {
     let mut buf = [0; 1024];
     match socket.recv_from(&mut buf).await {
         Ok((amt, src)) => {
@@ -188,8 +180,12 @@ async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> R
             match *m.get_type() {
                 MessageType::Heartbeat => {heart_beat_report(&socket, &tape).await?;}
                 MessageType::Response => {
+                    
                     if m.get_body() == "Success" {
                         info!("{content}: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
+                        return Ok(0);
+                    } else if m.get_body() == "Registerd" {
+                        info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
                         return Ok(0);
                     } else {
                         println!("do not support such response yet : {}", m.get_body());
@@ -210,59 +206,10 @@ async fn recv_message(socket: &UdpSocket, tape: &SocketAddr, content: &str) -> R
     Ok(1)
 }
 
-/*use tapeos::{
-    components::linkhub::{seeker, waiter},
-    tools::idgen::init_id_generator
-};
-use std::{
-    thread, 
-    sync::mpsc::{Sender, Receiver, channel}
-};
+const MY_SQL_DESCRIPTION: &str = "MySQL can store, organize, and manage data in structured tables. It allows users to create, read, update, and delete data using SQL queries. It supports data sorting, filtering, and searching, and can handle complex operations like joining multiple tables. MySQL ensures data integrity through constraints, transactions, and indexing. It can manage large datasets, support multiple users simultaneously, and provide secure access control. Additionally, it enables backups, replication, and scalability for growing applications.";
 
-const ENABLE_SEEK: bool = true;
-const ENABLE_WAIT: bool = true;
-const ENABLE_BOTH: bool = ENABLE_SEEK && ENABLE_WAIT;
+const MONGO_DB_DESCRIPTION: &str = "MongoDB is a NoSQL database that stores data in flexible, JSON-like documents instead of tables. It can handle unstructured or semi-structured data, making it ideal for dynamic or evolving data models. MongoDB allows you to store, query, and manage large volumes of data efficiently. It supports indexing for fast searches, horizontal scaling for handling big data, and replication for high availability. MongoDB also enables complex queries, aggregation, and real-time analytics, making it suitable for modern applications with diverse data needs.";
 
-fn main() {
-    let mut seek_send: Option<Sender<String>> = None;
-    let mut wait_send: Option<Sender<String>> = None;
-    let mut seek_recv: Option<Receiver<String>> = None;
-    let mut wait_recv: Option<Receiver<String>> = None;
-    if ENABLE_BOTH {
-        let (send, recv) = channel::<String>();
-        (seek_send, wait_recv) = (Some(send), Some(recv));
-        let (send, recv) = channel::<String>();
-        (wait_send, seek_recv) = (Some(send), Some(recv));
-    }
-    match init_id_generator() {
-        Ok(_) => (),
-        Err(e) => {
-            println!("Error initializing id generator: {}", e);
-            return;
-        }
-    }
+const GOO_GLE_DRIVE_DESCRIPTION: &str = "Google Drive is a cloud-based storage service that allows you to store, share, and access files from anywhere. It can store documents, photos, videos, and other file types, and sync them across devices. You can create and edit files using Google Workspace tools like Docs, Sheets, and Slides directly within Drive. It supports file sharing with customizable permissions, collaboration in real-time, and version history to track changes. Google Drive also provides search functionality to quickly find files and integrates with other Google services and third-party apps.";
 
-    let mut handles = vec![];
-    if ENABLE_SEEK {
-        handles.push(thread::spawn(move || {
-            if ENABLE_BOTH {
-                seeker::channel_init(seek_send, seek_recv);
-            }
-            let _ = seeker::seek();
-        }));
-    }
-
-    if ENABLE_WAIT {
-        handles.push(thread::spawn(move || {
-            if ENABLE_BOTH {
-                waiter::channel_init(wait_send, wait_recv);
-            }
-            let _ = waiter::wait();
-        }));
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
-}
- */
+const INTENT_INPUT_DESCRIPTION: &str = "Intent Input is a device which can get intent from user, but can not reveive any intent from other ways";

@@ -36,7 +36,7 @@ lazy_static! {
     pub static ref SOCKET: Mutex<Option<UdpSocket>> = Mutex::new(None);
 }
 
-pub async fn seek() -> Result<(), Box<dyn Error>> {
+pub async fn seek() -> BoxResult<()> {
     let (tx, rx) = mpsc::channel::<(String, SocketAddr)>(32);
 
     receive(tx).await;
@@ -60,7 +60,7 @@ async fn receive(tx: Sender<(String, SocketAddr)>) {
     });
 }
 
-async fn response(mut rx: Receiver<(String, SocketAddr)>) -> Result<(), Box<dyn Error>> {
+async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
     let socket = UdpSocket::bind("127.0.0.1:8889").await.expect("Failed to bind to socket");
     SOCKET.lock().await.replace(socket);
 
@@ -91,6 +91,7 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> Result<(), Box<dyn 
             _ = heartbeat_inter.tick() => {
                 // Check stored socket addresses are still valid
                 info!("sending heart beat to check whether resource alive.");
+                // TODO: may error here.
                 send_heartbeat().await?;
             },
             _ = status_inter.tick() => {
@@ -102,7 +103,7 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> Result<(), Box<dyn 
 }
 
 
-async fn message_handler(message: &str, src: SocketAddr) -> Result<(), Box<dyn Error>> {
+async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
     // parse the message into available format
     let m: Message = parse_message(&message);
     match m.get_type() {
@@ -136,7 +137,7 @@ async fn message_handler(message: &str, src: SocketAddr) -> Result<(), Box<dyn E
         MessageType::Register => {
             let r = message2resource(m.get_body())?;
             let m_body = match store_resource(r).await {
-                Some(_) => "Success",
+                Some(_) => "Registerd",
                 None => "Duplicate"
             };
             let m = Message::new(MessageType::Response, m_body.to_string(), None);
@@ -206,7 +207,7 @@ async fn store_resource(resource: InternetResource) -> Option<()> {
     Some(())
 }
 
-fn message2resource(message: String) -> Result<InternetResource, Box<dyn Error>> {
+fn message2resource(message: String) -> BoxResult<InternetResource> {
     let resource: InternetResource = serde_json::from_str(&message)?;
     Ok(resource)
 }
@@ -232,14 +233,15 @@ async fn find_resource_by_addr(addr: &SocketAddr) -> Option<String> {
         let i_r = i.lock().await;
         if i_r.get_address() == addr {
             return Some(i_r.get_name().to_string());
+        } else {
         }
     }
     // "Intent input".to_string()
-    warn!("Outer intent");
+    warn!("Outer intent {addr}");
     None
 }
 
-async fn mark_complete(sub_id: i64) ->Result<(), Box<dyn Error>> {
+async fn mark_complete(sub_id: i64) ->BoxResult<()> {
     // let mut id = 0;
     for i in INTENT_QUEUE.lock().await.iter_mut() {
         let mut c = false;
@@ -261,7 +263,7 @@ async fn mark_complete(sub_id: i64) ->Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn send_heartbeat() -> Result<(), Box<dyn Error>> {
+async fn send_heartbeat() -> BoxResult<()> {
     for (name, resource) in INTERNET_RESOURCES.lock().await.iter() {
         let r = resource.lock().await;
         let address = r.get_address();
@@ -313,8 +315,8 @@ async fn interpret_intent(interpreter: &Interpreter, i: &str) -> String {
     command
 }
 
-pub async fn send_message_internet(r: Arc<Mutex<InternetResource>>, i: &str, m_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
-    let r = r.lock().await;
+pub async fn send_message_internet(r: tokio::sync::MutexGuard<'_, InternetResource>, i: &str, m_type: MessageType, id: Option<i64>) -> BoxResult<()> {
+    info!("message start");
     let addr = r.get_address();
     let message = if r.is_interpreter_none() {
         let m = Message::new(m_type, i.to_string(), id);
@@ -324,7 +326,7 @@ pub async fn send_message_internet(r: Arc<Mutex<InternetResource>>, i: &str, m_t
     };
     let data: Vec<u8> = message.as_bytes().to_vec();
     get_udp!().send_to(&data, addr).await?;
-    info!("message send");
+    info!("message send {addr}");
     Ok(())
 }
 

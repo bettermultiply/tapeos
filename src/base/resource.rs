@@ -52,6 +52,7 @@ pub enum ResourceAddress {
 pub enum Interpreter {
     PathBuf(PathBuf),
     LLM(String),
+    Classification(Vec<String>), // all avaiable command here. 
     Unknow,
     None,
 }

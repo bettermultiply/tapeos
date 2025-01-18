@@ -2,15 +2,12 @@
 // when the resource and subsystem are querying to connect, 
 // the waiter will store the information of the resource or subsystem.
 // and maintain the connection.
-use std::{
-    error::Error, 
-    sync::{
+use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, sync::{
         mpsc::{Receiver, Sender}, Arc
-    }
-};
+    }, time};
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
-use crate::{base::intent::Intent, components::linkhub::{bluetooth, internet, wifi}};
+use crate::{base::{errort::BoxResult, intent::Intent, resource::Status}, components::linkhub::{bluetooth, internet, wifi}};
 
 use super::{bluetooth::resource::BluetoothResource, internet::resource::InternetResource};
 
@@ -66,11 +63,12 @@ impl ResourceType {
 }
 
 type Queue<T> = Mutex<Vec<T>>;
+type Glo<T> = Arc<Mutex<T>>;
 
 lazy_static! {
     pub static ref TAPE: Arc<Mutex<ResourceType>> = Arc::new(Mutex::new(ResourceType::None));
-    pub static ref BTAPE: Arc<Mutex<Option<Arc<Mutex<BluetoothResource>>>>> = Arc::new(Mutex::new(None));
-    pub static ref ITAPE: Arc<Mutex<Option<Arc<Mutex<InternetResource>>>>> = Arc::new(Mutex::new(None));
+    pub static ref BTAPE: Glo<Option<Arc<Mutex<BluetoothResource>>>> = Arc::new(Mutex::new(None));
+    pub static ref ITAPE: Arc<Mutex<Arc<Mutex<InternetResource>>>> = Arc::new(Mutex::new(Arc::new(Mutex::new(InternetResource::new("Tape".to_string(), "".to_string(), SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888), Status::new(true, (1.0, 1.0, 1.0), time::Duration::from_secs(0)))))));
     pub static ref WAIT_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref WAIT_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
  
@@ -83,7 +81,7 @@ pub async fn channel_init(wait_send: Option<Sender<String>>, wait_recv: Option<R
 }
 
 
-pub async fn wait() -> Result<(), Box<dyn Error>> {
+pub async fn wait() -> BoxResult<()> {
     match WAIT_METHOD {
         WaitMethod::Bluetooth => bluetooth::wait::wait(),
         WaitMethod::Wifi => wifi::wait::wait(),

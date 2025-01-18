@@ -167,22 +167,23 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
             id: 0,
             name: "risk".to_string(), 
             description: "risk".to_string(), 
+            // detail: RuleDetail::AsyncF("risk".to_string()), 
             detail: RuleDetail::Prompt(staticrule::RISK_PROMPT.to_string()), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },
     ),
-    (
-        "privilege", 
-        Rule {
-            id: 1,
-            name: "privilege".to_string(), 
-            description: "privilege".to_string(), 
-            detail: RuleDetail::Prompt(staticrule::PRIVILEGE_PROMPT.to_string()), 
-            valid_time: Duration::from_secs(0),
-            created_time: Instant::now(),
-        },
-    ),
+    // (
+    //     "privilege", 
+    //     Rule {
+    //         id: 1,
+    //         name: "privilege".to_string(), 
+    //         description: "privilege".to_string(), 
+    //         detail: RuleDetail::Prompt(staticrule::PRIVILEGE_PROMPT.to_string()), 
+    //         valid_time: Duration::from_secs(0),
+    //         created_time: Instant::now(),
+    //     },
+    // ),
     (
         "reject", 
         Rule {

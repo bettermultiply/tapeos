@@ -5,7 +5,7 @@ use bluer::{
     gatt::remote::{Characteristic, Service}
 };
 use std::{
-    collections::HashMap, error::Error, sync::Arc, time::Duration 
+    collections::HashMap, sync::Arc, time::Duration 
 };
 use futures::{pin_mut, StreamExt, future};
 use tokio::{
@@ -15,8 +15,7 @@ use tokio::{
 
 use crate::{
     base::{ 
-        intent::{Intent, IntentSource, IntentType},
-        resource::{Interpreter, Position, Resource}
+        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, resource::{Interpreter, Position, Resource}
     }, components::linkhub::{bluetooth::resource::BluetoothResource, seeker::{send_intent, BLUETOOTH_RESOURCES, RESPONSE_QUEUE, SEEK_RECV}}, core::inxt::intent::handler, tools::llmq
 };
 
@@ -32,7 +31,7 @@ enum Platform {
 const PLATFORM: Platform = Platform::Linux;
 
 // seek by bluetooth. And for different platform, we will implement different logic.
-pub fn seek() -> Result<(), Box<dyn Error>> {
+pub fn seek() -> BoxResult<()> {
     match PLATFORM {
         Platform::Linux => {
             tokio::runtime::Builder::new_current_thread()
@@ -253,7 +252,7 @@ async fn complete_resource(blue_resource: Arc<Mutex<BluetoothResource>>) -> blue
 }
 
 // 0 means initial intent
-pub async fn query_status(resource: &str) -> Result<(), Box<dyn Error>> {
+pub async fn query_status(resource: &str) -> BoxResult<()> {
     send_intent(resource.to_string(), "query for status; query for command; query for description; query for interpreter;", 0).await?;
     Ok(())
 }

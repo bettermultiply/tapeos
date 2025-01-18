@@ -186,6 +186,10 @@ async fn rule_judge(intent: &mut Intent, rule: &Rule) -> BoxResult<()> {
                 if staticrule::status(intent).await {
                     return Err(Box::new(JudgeError::new("refresh status error.")));
                 }
+            } else if *s == "risk" {
+                if staticrule::risk(intent).await {
+                    return Err(Box::new(JudgeError::new("risk intent.")));
+                }
             }
         }
         _ => (),

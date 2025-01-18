@@ -22,6 +22,10 @@ impl InternetResource {
     pub fn get_address(&self) -> &SocketAddr {
         &self.address
     }
+
+    pub fn set_address(&mut self, addr: SocketAddr) {
+        self.address = addr;
+    }
 }
 
 impl fmt::Display for InternetResource {

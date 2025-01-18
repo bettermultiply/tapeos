@@ -8,7 +8,6 @@
 // 3. internet
 
 use std::{
-    error::Error, 
     sync::{
         Arc,
         mpsc::{Sender, Receiver}
@@ -53,7 +52,7 @@ pub async fn channel_init(seek_send: Option<Sender<String>>, seek_recv: Option<R
 }
 
 // seek resources and subsystems depend on the SEEK_METHOD.
-pub async fn seek() -> Result<(), Box<dyn Error>> {
+pub async fn seek() -> BoxResult<()> {
     match SEEK_METHOD {
         SeekMethod::Bluetooth => bluetooth::seek::seek(),
         SeekMethod::Wifi => wifi::seek::seek(),
@@ -144,7 +143,7 @@ pub async fn get_resource_status_str(name: &str) -> String {
 
 
 
-async fn send_message_bluetooth(r: Arc<Mutex<BluetoothResource>>, i: &str, i_type: MessageType, id: Option<i64>) -> Result<(), Box<dyn Error>> {
+async fn send_message_bluetooth(r: Arc<Mutex<BluetoothResource>>, i: &str, i_type: MessageType, id: Option<i64>) -> BoxResult<()> {
     let r = r.lock().await;
     let char = r.get_char().as_ref().unwrap();
     let reject = if r.is_interpreter_none() {
@@ -161,11 +160,11 @@ async fn send_message_bluetooth(r: Arc<Mutex<BluetoothResource>>, i: &str, i_typ
     Ok(())
 }
 
-pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Box<dyn Error>> {
+pub async fn reject_intent(resource_name: String, intent: &str) -> BoxResult<()> {
     let r_m = INTERNET_RESOURCES.lock().await;
     let r = r_m.get(&resource_name);
     if r.is_some() {
-        match send_message_internet(Arc::clone(r.unwrap()), intent, MessageType::Reject, None).await {
+        match send_message_internet(r.unwrap().lock().await, intent, MessageType::Reject, None).await {
             Ok(_) => (),
             Err(e) => return Err(e),
         }
@@ -191,7 +190,7 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Bo
                 }
             },
             ResourceType::Internet => {
-                match send_message_internet(Arc::clone(&ITAPE.lock().await.as_ref().unwrap()), intent, MessageType::Reject, None).await {
+                match send_message_internet(ITAPE.lock().await.lock().await, intent, MessageType::Reject, None).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }
@@ -204,10 +203,11 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> Result<(), Bo
 }
 
 pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> BoxResult<()> {
+    println!("{resource_name}");
     let r_m = INTERNET_RESOURCES.lock().await;
     let r = r_m.get(&resource_name);
     if r.is_some() {
-        match send_message_internet(Arc::clone(r.unwrap()), intent, MessageType::Intent, Some(id)).await {
+        match send_message_internet(r.unwrap().lock().await, intent, MessageType::Intent, Some(id)).await {
             Ok(()) => (),
             Err(e) => return Err(e),
         }
@@ -234,7 +234,7 @@ pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> BoxRes
             },
             ResourceType::Internet => {
                 // TODO: may error here.
-                match send_message_internet(Arc::clone(&ITAPE.lock().await.as_ref().unwrap()), intent, MessageType::Intent, Some(id)).await {
+                match send_message_internet(ITAPE.lock().await.lock().await, intent, MessageType::Intent, Some(id)).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }

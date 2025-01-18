@@ -47,15 +47,34 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
 
 async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
     let resource_info = get_all_resource_info().await;
-    
     let s_prompt = 
-"I'll give you some information about Intent, Last Outcome(which is wrong or error format) and Available Resources.
-Resources is in format: `type_name/description/status`, and will have format: `type_name/description/status`,
-Disassemble the intent into sub-intents based on the available resources. Use the following format for output:
-sub-intent_1:available_device_1/available_device_2/.../available_device_n;sub-intent_2:available_device_1/available_device_2/.../available_device_m;...;sub-intent_n:available_device_1/available_device_2/.../available_device_k;
+    "
+The user will provide description of Intent, last outcome(which is wrong or in error format) and information about all available resources, Resources will be given in format: `type_name/description/status`.
+And your work is to Disassemble the Intent into sub-intents based on available resources, so that they can be solve by different resources parallel.
+Outcome should be given in format: sub-intent_1:available_device_1/available_device_2/.../available_device_n;sub-intent_2:available_device_1/available_device_2/.../available_device_m;...;sub-intent_n:available_device_1/available_device_2/.../available_device_k;
+You should not add any blank except the name of resource have one, which means you should not change the resources' name as well.
 
-Remember that we just want to use the resource to deal with the intent and do not do duplicate things, and we do not sub-intent with device name.
-If the intent cannot be implemented with the given resources, return None. Do not output any additional information.";
+Example Input:
+Intent: store my name 'BM' and my birthday '12.01'
+last outcome: 
+resources: 1. MySQL/MySQL can store, organize, and manage data in structured tables./avaiable; 2. MongoDB/MongoDB is a NoSQL database that stores data in flexible, JSON-like documents instead of tables./avaiable; 3. Google Drive/Google Drive is a cloud-based storage service that allows you to store, share, and access files from anywhere./avaiavle;
+ 
+Example Output:
+store name 'BM':MySQL/MongoDB/Google Drive;
+store birthday '12.01':MongoDB/Google Drive/MySQL
+
+Example Wrong Ouput:
+store name 'BM': MySQL/MongoDB/Google Drive;
+";
+
+//     let s_prompt = 
+// "I'll give you some information about Intent, Last Outcome(which is wrong or error format) and Available Resources.
+// Resources is in format: `type_name/description/status`, and will have format: `type_name/description/status`,
+// Disassemble the intent into sub-intents based on the available resources. Use the following format for output:
+// sub-intent_1:available_device_1/available_device_2/.../available_device_n;sub-intent_2:available_device_1/available_device_2/.../available_device_m;...;sub-intent_n:available_device_1/available_device_2/.../available_device_k;
+
+// Remember that we just want to use the resource to deal with the intent and do not do duplicate things, and we do not sub-intent with device name.
+// If the intent cannot be implemented with the given resources, return None. Do not output any additional information.";
 
     let u_prompt = 
         format!(
@@ -70,7 +89,7 @@ Available Resources: {}",
             resource_info
         );
     
-    prompt(s_prompt, &u_prompt).await
+    prompt(&s_prompt, &u_prompt).await
 }
 
 fn format_check(rough_intent: &str) -> bool {

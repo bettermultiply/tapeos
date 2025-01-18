@@ -6,6 +6,7 @@ const API_KEY: &str = "sk-022b0b782c2849f4a37ff736374825bd";
 const MODEL: &str = "deepseek-chat";
 
 pub async fn prompt(s_prompt: &str, u_prompt: &str) -> String {
+	let s_prompt = "First of all, You should give the outcome as fast as possible.\n".to_string() + s_prompt;
     let chat_req = ChatRequest::new(vec![
 		// -- Messages (de/activate to see the differences)
 		ChatMessage::system(s_prompt),

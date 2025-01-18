@@ -1,6 +1,6 @@
-use std::error::Error;
+use crate::base::errort::BoxResult;
 
-pub fn wait() -> Result<(), Box<dyn Error>> {
+pub fn wait() -> BoxResult<()> {
     
     // TODO:
     // 1. 发现 外部seeker 的广播，并建立连接

@@ -1,5 +1,7 @@
 use chrono::Weekday;
 use log::info;
+use rust_bert::pipelines::zero_shot_classification::ZeroShotClassificationModel;
+use tokio::task::spawn_blocking;
 
 use crate::base::intent::Intent;
 use crate::base::intent::IntentType;
@@ -16,6 +18,34 @@ use super::rule::RuleDetail;
 use super::rule::TransRule;
 use super::rule::TransRuleDetail;
 use super::rule::RULES;
+
+pub async fn risk(intent: &mut Intent) -> bool {
+    let s = intent.get_description().to_string().clone();
+    if spawn_blocking(move || {
+        let sequence_classification_model = match ZeroShotClassificationModel::new(Default::default ()) {
+            Ok(m) => m,
+            Err(_) => return true,
+        };
+        println!("1");
+        let candidate_labels = & ["risk", "no risk"];
+
+        let output = match sequence_classification_model.predict_multilabel(
+            &[s.as_ref()],
+            candidate_labels,
+            None,
+            128,
+        ) {
+            Ok(o) => o,
+            Err(_) => return true,
+        };
+        
+        !(output[0][0].text == "risk")
+    }).await.unwrap() {
+        return true;
+    }
+    
+    false
+}
 
 pub static RISK_PROMPT: &str = "
     check if the intent below will cause risk.

@@ -23,13 +23,13 @@ use tokio::{
 };
 
 use std::{
-    collections::{BTreeMap, HashMap}, error::Error, sync::Arc, time::Duration
+    collections::{BTreeMap, HashMap}, sync::Arc, time::Duration
 };
 use futures::{future, pin_mut, StreamExt};
 
 use crate::{
     base::{errort::BoxResult, intent::{Intent, IntentSource, IntentType}},
-    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::send_intent, waiter::{ResourceType, BTAPE, ITAPE, TAPE, WAIT_RECV}},
+    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::send_intent, waiter::{ResourceType, BTAPE, TAPE, WAIT_RECV}},
     core::inxt::intent::handler
 };
 
@@ -44,7 +44,7 @@ enum Platform {
 const PLATFORM: Platform = Platform::Linux;
 
 // wait only execute the seeker request and tapeos request.
-pub fn wait() -> Result<(), Box<dyn Error>> {
+pub fn wait() -> BoxResult<()> {
     match PLATFORM {
         Platform::Linux => {
             tokio::runtime::Builder::new_current_thread()
@@ -276,11 +276,9 @@ async fn remove_tape(address: Address) -> bluer::Result<()> {
     match tape_type.copy() {
         ResourceType::Bluetooth => {
             *tape_type = ResourceType::None;
-            let _ = BTAPE.lock().await.take();
         },
         ResourceType::Internet => {
             *tape_type = ResourceType::None;
-            let _ = ITAPE.lock().await.take();
         },
         ResourceType::None => {
             warn!("no Tape now");

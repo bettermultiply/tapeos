@@ -35,6 +35,7 @@ pub mod tools {
     pub mod llmq;
     pub mod interpreter;
     pub mod record;
+    pub mod rserver;
 }
 
 pub mod base {

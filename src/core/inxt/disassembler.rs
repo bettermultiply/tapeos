@@ -1,6 +1,6 @@
 // in this file, we will implement the disassembler.
 
-use log::info;
+use log::{info, warn};
 use regex::Regex;
 use crate::{
     base::intent::{Intent, SubIntent}
@@ -19,20 +19,19 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
                 last_outcome.as_str()
             ).await;
             
-        println!("disassembler: rough_intent: {}", rough_intent);
+        info!("disassembler rough_intent: {}", rough_intent);
         
         last_outcome = rough_intent.clone();
         let to_parse_intent = rough_intent;
         match format_check(&to_parse_intent) {
             true => {
                 sub_intents = parse_rough_intent(to_parse_intent);
-                println!("disassembler: sub_intents complete");
                 break;
             }
             false => {
                 tries_count -= 1;
                 if tries_count == 0 {
-                    println!("disassembler: sub_intents error");
+                    warn!("disassembler: sub_intents error");
                     return None;
                 }
             }

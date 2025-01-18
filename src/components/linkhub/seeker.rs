@@ -8,11 +8,9 @@
 // 3. internet
 
 use std::{
-    sync::{
-        Arc,
-        mpsc::{Sender, Receiver}
-    }, 
-    collections::HashMap
+    collections::HashMap, sync::{
+        mpsc::{Receiver, Sender}, Arc
+    }
 };
 use lazy_static::lazy_static;
 use log::info;
@@ -123,6 +121,39 @@ pub async fn fresh_resource_status(name: &str, s: Status) -> bool {
         None => (),
     } 
     false
+}
+
+pub async fn change_resource_usage(name: &str, usage: bool) -> bool {
+    let u = if usage {1} else {-1};
+    match INTERNET_RESOURCES.lock().await.get(name) {
+        Some(r) => {
+            r.lock().await.change_usage(u);
+        },
+        None => (),
+    }
+    match BLUETOOTH_RESOURCES.lock().await.get(name) {
+        Some(r) => {
+            r.lock().await.change_usage(u);
+        },
+        None => (),
+    } 
+    false
+}
+
+pub async fn get_resource_usage(name: &str) -> i8 {
+    match INTERNET_RESOURCES.lock().await.get(name) {
+        Some(r) => {
+            return r.lock().await.get_usage();
+        },
+        None => (),
+    }
+    match BLUETOOTH_RESOURCES.lock().await.get(name) {
+        Some(r) => {
+            return r.lock().await.get_usage();
+        },
+        None => (),
+    } 
+    std::i8::MAX
 }
 
 pub async fn get_resource_status_str(name: &str) -> String {

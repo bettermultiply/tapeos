@@ -26,7 +26,6 @@ pub async fn risk(intent: &mut Intent) -> bool {
             Ok(m) => m,
             Err(_) => return true,
         };
-        println!("1");
         let candidate_labels = & ["risk", "no risk"];
 
         let output = match sequence_classification_model.predict_multilabel(

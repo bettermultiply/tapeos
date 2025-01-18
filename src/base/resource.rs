@@ -29,14 +29,16 @@ use serde::{Deserialize, Serialize};
 pub trait Resource: Send + Sync {
     fn get_name(&self) -> &str;
     fn get_description(&self) -> &str;
-    fn get_address(&self) -> ResourceAddress;
+    fn get_usage(&self) -> i8;
     fn get_status(&mut self) -> &mut Status;
+    fn get_address(&self) -> ResourceAddress;
     fn get_interpreter(&self) -> &Interpreter;
     fn display_status(&self) -> String;
 
     fn set_status(&mut self, status: Status);
     fn set_interpreter(&mut self, interpreter: Interpreter);
     fn set_description(&mut self, description: String);
+    fn change_usage(&mut self, usage: i8);
 
     fn is_interpreter_none(&self) -> bool;
 }
@@ -119,3 +121,53 @@ impl Position {
 // we do not need such function, instead we will use hashmap.
 // pub fn find_resource<'a>(device_name: String)
 
+#[derive(Serialize, Deserialize)]
+pub struct RegisterServer {
+    tape: bool,
+    iaddr: Option<SocketAddr>,
+    oaddr: Option<SocketAddr>,
+    x_dis: (f32, f32),
+    y_dis: (f32, f32),
+    z_dis: (f32, f32),
+}
+
+impl RegisterServer {
+    pub fn new(
+        tape: bool, 
+        iaddr: Option<SocketAddr>, 
+        oaddr: Option<SocketAddr>, 
+        dis: ((f32, f32), (f32, f32), (f32, f32)), 
+    ) -> Self {
+        Self {
+            tape,
+            iaddr,
+            oaddr,
+            x_dis: dis.0,
+            y_dis: dis.1,
+            z_dis: dis.2,
+        }
+    }
+
+    pub fn is_tape(&self) -> bool {
+        self.tape
+    }
+
+    pub fn get_iaddr(&self) -> SocketAddr {
+        self.iaddr.unwrap().clone()
+    }
+
+    pub fn get_oaddr(&self) -> SocketAddr {
+        self.oaddr.unwrap().clone()
+    }
+
+    pub fn is_position_suit(&self, p: &RegisterServer) -> bool {
+        let v_position = ((-100.0, 100.0), (-100.0, 100.0), (-100.0, 100.0));
+
+            p.x_dis.0 > (v_position.0).0 
+        &&  p.x_dis.1 < (v_position.0).1
+        &&  p.y_dis.0 > (v_position.1).0
+        &&  p.y_dis.1 < (v_position.1).1
+        &&  p.z_dis.0 > (v_position.2).0
+        &&  p.z_dis.1 < (v_position.2).1
+    }
+}

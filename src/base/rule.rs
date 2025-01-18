@@ -185,6 +185,17 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
     //     },
     // ),
     (
+        "emergency", 
+        Rule {
+            id: 2,
+            name: "emergency".to_string(), 
+            description: "emergency".to_string(), 
+            detail: RuleDetail::Function(staticrule::emergency), 
+            valid_time: Duration::from_secs(0),
+            created_time: Instant::now(),
+        },
+    ),
+    (
         "reject", 
         Rule {
             id: 500,
@@ -218,12 +229,12 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
         },
     ),
     (
-        "reject", 
+        "direct", 
         Rule {
-            id: 503,
-            name: "emergency".to_string(), 
-            description: "emergency".to_string(), 
-            detail: RuleDetail::Function(staticrule::emergency), 
+            id: 502,
+            name: "direct".to_string(), 
+            description: "send directly to resource".to_string(), 
+            detail: RuleDetail::AsyncF("direct".to_string()), 
             valid_time: Duration::from_secs(0),
             created_time: Instant::now(),
         },

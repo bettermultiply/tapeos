@@ -2,7 +2,7 @@ use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, time, str};
 
 use log::{info, warn};
 use tapeos::{
-    base::{errort::BoxResult, message::{Message, MessageType}, resource::Status}, components::linkhub::internet::{resource::InternetResource, seek::{seek, TAPE_ADDRESS}, wait::wait}, core::inxt::intent::random_execute, tools::idgen::init_id_generator
+    base::{errort::BoxResult, message::{Message, MessageType}, resource::Status}, components::linkhub::internet::{resource::InternetResource, seek::{seek, TAPE_ADDRESS}, wait::wait}, core::inxt::intent::random_execute, tools::{idgen::init_id_generator, rserver::tape_server}
 };
 use tokio::net::UdpSocket;
 
@@ -12,6 +12,9 @@ async fn main() {
     env_logger::init();
     init_id_generator();
 
+    tokio::spawn(async {
+        tape_server();
+    });
     // let intent = Intent::new("store my name".to_string(), IntentSource::Resource, IntentType::Intent, None);
     tokio::spawn(async {
         let _ = wait("MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 8001).await;

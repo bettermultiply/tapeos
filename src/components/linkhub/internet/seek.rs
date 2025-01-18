@@ -1,6 +1,6 @@
 // use std::time;
 use std::{
-    error::Error, net::SocketAddr, str, sync::Arc, time::Instant
+    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, time::Instant
 };
 use log::{info, error, warn};
 use tokio::{
@@ -9,14 +9,14 @@ use tokio::{
     sync::Mutex,
     sync::mpsc::{self, Receiver, Sender}
 };
-use lazy_static::lazy_static;
+use lazy_static::lazy_static; 
 use crate::{
     base::{
-        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::{Interpreter, Position, Resource} 
+        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::{Interpreter, Position, RegisterServer, Resource} 
     },
     components::linkhub::{
         internet::resource::InternetResource,
-        seeker::{reject_intent, INTENT_QUEUE, INTERNET_RESOURCES},
+        seeker::{change_resource_usage, reject_intent, INTENT_QUEUE, INTERNET_RESOURCES},
     },
     core::inxt::{
         intent::handler, 
@@ -37,6 +37,7 @@ lazy_static! {
 }
 
 pub async fn seek() -> BoxResult<()> {
+
     let (tx, rx) = mpsc::channel::<(String, SocketAddr)>(32);
 
     receive(tx).await;
@@ -60,19 +61,36 @@ async fn receive(tx: Sender<(String, SocketAddr)>) {
     });
 }
 
-async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
-    let socket = UdpSocket::bind("127.0.0.1:8889").await.expect("Failed to bind to socket");
-    SOCKET.lock().await.replace(socket);
+pub async fn find_register(socket: &UdpSocket, tape: bool, position: ((f32, f32), (f32, f32), (f32, f32))) {
+    let v4: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+    let ipv4 = IpAddr::V4(v4);
+    let iaddr = SocketAddr::new(ipv4, 8888);
+    let oaddr = SocketAddr::new(ipv4, 8889);
+    let r = RegisterServer::new(tape, Some(iaddr), Some(oaddr), position);
+    let r_json = serde_json::to_string(&r).unwrap();
+    let addr = SocketAddr::new(ipv4, 8000);
+    info!("send server register {}", socket.local_addr().unwrap());
+    socket.send_to(&r_json.as_bytes(), addr).await.unwrap();
+} 
 
+async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
+    
+    let socket = UdpSocket::bind("127.0.0.1:8889").await.expect("Failed to bind to socket");
+    
+    SOCKET.lock().await.replace(socket);
+    
+    let v_position: ((f32, f32), (f32, f32), (f32, f32)) = ((-100.0, 100.0), (-100.0, 100.0), (-100.0, 100.0));
+    
+    find_register(SOCKET.lock().await.as_ref().unwrap(), true, v_position).await; 
     // every 60 seconds, check if the socket addresses are still valid
     let mut heartbeat_inter = interval(Duration::from_secs(200));
     let mut reroute_inter = interval(Duration::from_secs(10));
     let mut status_inter = interval(Duration::from_secs(60));
-
+    
     loop {
         tokio::select! {
             Some((message, src)) = rx.recv() => {
-                // handler message from resources.
+                    // handler message from resources.
                 info!("Receive message from: {}", src);
                 message_handler(&message, src).await?;
             },
@@ -92,7 +110,9 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
                 // Check stored socket addresses are still valid
                 info!("sending heart beat to check whether resource alive.");
                 // TODO: may error here.
-                send_heartbeat().await?;
+                tokio::spawn(async {
+                    send_heartbeat().await.unwrap();
+                });
             },
             _ = status_inter.tick() => {
                 query_status().await?;
@@ -126,12 +146,18 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             }
             info!("get intent: {}", intent.get_description());
 
-            tokio::spawn(async {
+            tokio::spawn(async move {
                 match handler(intent).await {
                     JudgeResult::Reject(e) => reject_intent(r.unwrap(), &e).await.unwrap(),
                     _ => (),
                 };
-                info!("handler over");
+                // info!("handler over");
+                // let s = "Finish".to_string();
+                // let m = Message::new(MessageType::Finish, s, m.get_id());
+                // let m_json = serde_json::to_string(&m).unwrap();
+                // let data: Vec<u8> = m_json.as_bytes().to_vec();
+                // get_udp!().send_to(&data, src).await.unwrap();
+                // info!("har over");
             });
         },
         MessageType::Register => {
@@ -142,15 +168,18 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             };
             let m = Message::new(MessageType::Response, m_body.to_string(), None);
             let m_json = serde_json::to_string(&m)?;
-            info!("send to src: {}", src);
+            // info!("send to src: {}", src);
             
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
         },
         MessageType::Response => {
             info!("Get Response: {}", m.get_body());
             mark_complete(m.get_id().unwrap_or(0)).await?;
-            
-            let m = Message::new(MessageType::Response, "Success".to_string(), None);
+            let mut m_body: String = "Success".to_string();
+            if m.get_body() == "Execute Over".to_string() {
+                m_body = "Finish Received".to_string();
+            }
+            let m = Message::new(MessageType::Response, m_body, None);
             let m_json = serde_json::to_string(&m)?;
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
             info!("Send Over: {}", m.get_body());
@@ -221,7 +250,7 @@ pub async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>>
             return Ok(0);
         },
     };
-    let m = Message::new(MessageType::Response, "Success".to_string(), None);
+    let m = Message::new(MessageType::Response, "Finish".to_string(), Some(intent.get_id()));
     let m_json = serde_json::to_string(&m)?;
     get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
     intent.complete();
@@ -248,6 +277,8 @@ async fn mark_complete(sub_id: i64) ->BoxResult<()> {
         for ii in i.iter_sub_intent() {
             if ii.get_id() != sub_id { continue; }
             ii.complete();
+            let name = ii.get_selected_resource().unwrap();
+            change_resource_usage(name, false).await;
             c = true;
         }
 
@@ -270,7 +301,9 @@ async fn send_heartbeat() -> BoxResult<()> {
         let m = Message::new(MessageType::Heartbeat, "".to_string(), None);
         let m_json = serde_json::to_string(&m)?;
         match get_udp!().try_send_to(&m_json.as_bytes(), *address) {
-            Ok(_) => info!("Heartbeat sent to {}", address),
+            Ok(_) => {
+                info!("Heartbeat sent to {}", address)
+            },
             Err(e) => warn!("Failed to send heartbeat to {}: {}", address, e),
         }
         let mut retry = 3;

@@ -6,17 +6,16 @@ use log::{info, warn};
 use crate::{
     base::{errort::BoxResult, intent::{Intent, SubIntent}}, 
     components::linkhub::seeker::{
-        get_resource_description, 
-        get_resource_status_str, 
-        send_intent
+        change_resource_usage, get_resource_description, get_resource_status_str, get_resource_usage, send_intent
     }, 
     tools::llmq::prompt
 };
 
 const RETRY_COUNT: i32 = 3;
-const SCORE_METHOD: &str = "";
+const SCORE_METHOD: &str = "usage";
 
-async fn route_intent(resource_name: &str, intent: &str, id: i64) -> BoxResult<()> {   
+async fn route_intent(resource_name: &str, intent: &str, id: i64) -> BoxResult<()> {  
+    change_resource_usage(resource_name, true).await; 
     send_intent(resource_name.to_string(), intent, id).await
 }
 
@@ -75,7 +74,11 @@ async fn score(sub_intent: &str, resource: &str) -> i32 {
     match SCORE_METHOD {
         "ai" => {
             score_by_ai(sub_intent, resource).await
-        }
+        },
+        "usage" => {
+            info!("using usage to score");
+            -(get_resource_usage(resource).await as i32)
+        },
         _ => {
             // which means just use resource in turn
             warn!("no such score method, use in turn");

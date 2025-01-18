@@ -5,6 +5,7 @@
 //                   -> user_judge      
 //         ->special_execution            => rule_judge
 //         ->reject
+// any time, true means pass the test.
 use chrono::{Local, Datelike};
 use log::info;
 use std::process::Command;
@@ -25,7 +26,7 @@ pub enum JudgeResult {
 
 // preprocess the intent.
 pub async fn process(intent: &mut Intent) -> JudgeResult {
-    info!("process: Judge the intent: {}", intent.get_description());
+    // info!("process: Judge the intent: {}", intent.get_description());
     
     match filter(intent).await {
         Ok(_) => (),
@@ -35,9 +36,9 @@ pub async fn process(intent: &mut Intent) -> JudgeResult {
     info!("process: Filter passed");
     
     match spec_exec(intent).await {
-        Ok(false) => (),
-        Ok(true) => return JudgeResult::Execution,
-        Err(e) => return JudgeResult::Reject(format_reject(intent.get_description(), &format!("{}", e))),
+        Ok(()) => (),
+        Err(_) => return JudgeResult::Execution,
+        //  => return JudgeResult::Reject(format_reject(intent.get_description(), &format!("{}", e))),
 
     }
 
@@ -65,35 +66,38 @@ async fn filter(intent: &mut Intent) -> BoxResult<()> {
 }
 
 // special execution for the intent.
-async fn spec_exec(intent: &mut Intent) -> BoxResult<bool> {
+async fn spec_exec(intent: &mut Intent) -> BoxResult<()> {
     
-    let i = intent.get_description();
-    let i_pair = i.split(":").collect::<Vec<&str>>();
-    if i_pair.len() != 2 {
-        return Ok(false);
-    }
+    // let i = intent.get_description();
+    // let i_pair = match i.split_once(":") {
+        // Some(p) => (),
+        // None => return Ok(()),
+    // };
+    // if i_pair.len() != 2 {
+        // return Ok(false);
+    // }
 
     let special_id = STATIC_RULES["reject"].get_id();
     for rule in STATIC_RULES.values().into_iter() {
-        if rule.get_id() < special_id || i_pair[1] != rule.get_name() {
+        if rule.get_id() < special_id {
+            // if rule.get_id() < special_id || i_pair[1] != rule.get_name() {
             continue;
         }
-
         match rule_judge(intent, rule).await {
-            Ok(()) => {
-                info!("special execution: ");
-                return Ok(true);   
+            Err(e) => {
+                info!("special execution: {}", rule.get_name());
+                return Err(e);   
             },
-            Err(e) => return Err(e),
+            Ok(()) => (),
         }
     }
 
-    Ok(false)
+    Ok(())
 }
 
 // should be used to judge  every intent.
 async fn essential_judge(intent: &mut Intent) -> BoxResult<()> {
-    info!("essential judge: ");
+    // info!("essential judge: ");
     
     // in essential part, all rule's will be hard coded.
     // essential rules will never be expired.
@@ -101,13 +105,12 @@ async fn essential_judge(intent: &mut Intent) -> BoxResult<()> {
     let special_id = STATIC_RULES["reject"].get_id();
     for rule in STATIC_RULES.values() {
         if rule.get_id() >= special_id {
-                info!("judge np, rule id: {}",rule.get_id() );
+                // info!("judge np, rule id: {}",rule.get_id() );
                 continue;
         }
-
         match rule_judge(intent, rule).await {
             Ok(()) => {
-                info!("judge Pass")
+                // info!("judge Pass")
             },
             Err(e) => return Err(e),
         }
@@ -138,7 +141,7 @@ async fn user_judge(intent: &mut Intent) -> BoxResult<()> {
 //  judge result is false then allow intent to be executed.
 //}
 async fn rule_judge(intent: &mut Intent, rule: &Rule) -> BoxResult<()> {
-    info!("rule: {}", rule.get_description());
+    // info!("rule: {}", rule.get_description());
     match rule.get_rule_detail() {
         RuleDetail::Source(intent_source) 
             => if intent.get_source() == intent_source { 
@@ -180,15 +183,15 @@ async fn rule_judge(intent: &mut Intent, rule: &Rule) -> BoxResult<()> {
         RuleDetail::AsyncF(s) => {
             if *s == "rule" {
                 if staticrule::rule(intent).await {
-                    return Err(Box::new(JudgeError::new("Add rule error.")));
+                    return Err(Box::new(JudgeError::new("Add rule.")));
                 }
             } else if *s == "status" {
                 if staticrule::status(intent).await {
-                    return Err(Box::new(JudgeError::new("refresh status error.")));
+                    return Err(Box::new(JudgeError::new("refresh status.")));
                 }
-            } else if *s == "risk" {
-                if staticrule::risk(intent).await {
-                    return Err(Box::new(JudgeError::new("risk intent.")));
+            } else if *s == "direct" {
+                if staticrule::direct(intent).await {
+                    return Err(Box::new(JudgeError::new("direct send intent.")));
                 }
             }
         }
@@ -198,7 +201,7 @@ async fn rule_judge(intent: &mut Intent, rule: &Rule) -> BoxResult<()> {
 }
 
 pub fn format_reject(intent: &str, reason: &str) -> String {
-    info!("reject: Reject the intent: {}", intent);
+    // info!("reject: Reject the intent: {}", intent);
     let response = format!(
         "intent: {}\nreject reason: {}", 
         intent, 

@@ -111,8 +111,8 @@ impl Status {
         self.dealing = dealing
     }
 
-    pub fn set_average_time(&mut self, average_time: Duration) {
-        self.average_time = average_time
+    pub fn change_average_time(&mut self, last_execute: Duration) {
+        self.average_time = self.average_time.mul_f32(0.9) + last_execute.mul_f32(0.1)
     }
 
     pub fn get_busy_time(&mut self) -> Duration {
@@ -134,7 +134,7 @@ impl Status {
             self.dealing -= 1;
         }
     }
-
+    
     pub fn sub_busy_time(&mut self, busy_time: Duration) {
         self.busy_time -= busy_time;
     }

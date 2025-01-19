@@ -15,7 +15,7 @@ use crate::{
             resource::InternetResource, 
             seek::TAPE_ADDRESS
         }, 
-        waiter::{ResourceType, ITAPE, TAPE, TAPE_INTENT_QUEUEUE, WAIT_EXEC_ADDR}
+        waiter::{ResourceType, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
     }, 
     core::inxt::intent::{execute, handler}
 };

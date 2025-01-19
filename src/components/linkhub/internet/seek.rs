@@ -92,7 +92,9 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
             Some((message, src)) = rx.recv() => {
                     // handler message from resources.
                 // info!("Receive message from: {}", src);
-                message_handler(&message, src).await?;
+                tokio::spawn(async move {
+                    message_handler(&message, src).await.unwrap();
+                });
             },
             _ = reroute_inter.tick() => {
                 const EXPIRE_D: Duration = Duration::from_secs(60);
@@ -146,7 +148,6 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             }
             info!("get intent: {}", intent.get_description());
 
-            tokio::spawn(async move {
                 match handler(intent).await {
                     JudgeResult::Reject(e) => reject_intent(r.unwrap(), &e).await.unwrap(),
                     _ => (),
@@ -158,7 +159,6 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
                 // let data: Vec<u8> = m_json.as_bytes().to_vec();
                 // get_udp!().send_to(&data, src).await.unwrap();
                 // info!("har over");
-            });
         },
         MessageType::Register => {
             let r = message2resource(m.get_body())?;

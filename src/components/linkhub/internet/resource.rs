@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct InternetResource {
     name: String,
     status: Status,
-    description: String,
     address: SocketAddr,
+    description: String,
     interpreter: Interpreter,
 }
 

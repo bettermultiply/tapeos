@@ -53,18 +53,18 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
 }
 
 // execute is used to execute the intent route to itself.
-pub async fn execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<()> {
+pub async fn execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<u64> {
     random_execute(intent, status).await
 }
 
-pub async fn random_execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<()> {
+pub async fn random_execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<u64> {
     let random_sleep_duration = rand::thread_rng().gen_range(1..=intent.len()) as u64; // Random duration between 1 and 5 seconds
-    info!("execute {} in {} seconds", intent, random_sleep_duration);
+    println!("execute {} in {} seconds", intent, random_sleep_duration);
     let exec_time = Duration::from_secs(random_sleep_duration);
     status.lock().await.add_busy_time(exec_time);
     status.lock().await.change_dealing(true);
-    sleep(exec_time);  
+    sleep(exec_time);
     status.lock().await.change_dealing(false);
     status.lock().await.sub_busy_time(exec_time);
-    Ok(())
+    Ok(exec_time.as_secs())
 }

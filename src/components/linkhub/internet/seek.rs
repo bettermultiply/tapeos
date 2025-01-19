@@ -168,7 +168,6 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             };
             let m = Message::new(MessageType::Response, m_body.to_string(), None);
             let m_json = serde_json::to_string(&m)?;
-            // info!("send to src: {}", src);
             
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
         },
@@ -180,9 +179,9 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
                 m_body = "Finish Received".to_string();
             }
             let m = Message::new(MessageType::Response, m_body, None);
-            let m_json = serde_json::to_string(&m)?;
+            let m_json: String = serde_json::to_string(&m)?;
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
-            // info!("Send Over: {}", m.get_body());
+            info!("Send Over: {}", m.get_body());
         },
         MessageType::Reject => {
             let id = m.get_id().unwrap();
@@ -214,7 +213,7 @@ fn parse_message(message: &str) -> Message{
             fn parse_unknown(m: &str) -> Message {
                 let mut m_type: MessageType = MessageType::Unknown;
                 if m.contains("Intent") { m_type = MessageType::Intent }
-                else if  m.contains("Reponse") { m_type = MessageType::Response }
+                else if  m.contains("Response") { m_type = MessageType::Response }
                 else if  m.contains("Register") { m_type = MessageType::Register }
                 else if  m.contains("Reject") { m_type = MessageType::Reject }
                 else if  m.contains("Finish") { m_type = MessageType::Finish }

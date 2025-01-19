@@ -47,12 +47,14 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
         socket, 
         input_socket,
         m_json
-    ) = init(name, desc, port).await?;
+    ) = init(name.clone(), desc, port).await?;
 
     let mut tape_i: Option<SocketAddr> = None;
     let mut tape_o: Option<SocketAddr> = None;
-
+    let socket = Arc::new(socket);
     let status = Arc::new(Mutex::new(Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0))));
+    let usage_time: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+    let usage_times: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
     let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000);
     let v_position: ((f32, f32), (f32, f32), (f32, f32)) = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0));
@@ -77,6 +79,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                         if tape_i.is_none() {
                             warn!("send to seeker please");
                         }
+
                         let i = Intent::new(m_body.to_string(), IntentSource::Input, IntentType::Intent, None);
                         info!("send message {m_body}");
                         
@@ -161,26 +164,31 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     },
                     MessageType::Intent 
                     => {
+                        let c_socket = Arc::clone(&socket);
                         let c_status = Arc::clone(&status);
+                        let c_time = Arc::clone(&usage_time);
+                        let c_times = Arc::clone(&usage_times);
                         let c_tape_i = tape_i.clone();
                         let c_m = m.get_body().clone();
                         let m_id = m.get_id().clone();
                         tokio::spawn(async move {
 
                             if END {
-                                execute(&c_m, c_status).await.unwrap();
+                                let x = execute(&c_m, c_status).await.unwrap();
+                                *c_time.lock().await += x;
+                                *c_times.lock().await += 1;
                             } else {
                                 let i: Intent = Intent::new(c_m.clone(), IntentSource::Tape, IntentType::Intent, Some("TAPE".to_string()));
                                 handler(i).await;
                             }
                             let m = Message::new(MessageType::Response, "Execute Over".to_string(), m_id);
-                            let addr = WAIT_EXEC_ADDR.lock();
-                            let s = UdpSocket::bind(addr.await.clone()).await.unwrap();
+                            // let addr = WAIT_EXEC_ADDR.lock();
+                            // let s = UdpSocket::bind(addr.await.clone()).await.unwrap();
                             loop {
-                                match send_message(&s, &c_tape_i.unwrap(), &m).await {
+                                match send_message(&c_socket, &c_tape_i.unwrap(), &m).await {
                                     Ok(_) => {
-                                        let _ = s;
-                                        let _ = addr;
+                                        // let _ = s;
+                                        // let _ = addr;
                                         break;
                                     },
                                     Err(_e) => (),

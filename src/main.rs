@@ -29,7 +29,7 @@ async fn main() {
     for i in 0..20005 {
         tokio::spawn(async move {
             let s = format!("MySQL{i}");
-            let _ = wait(s, MY_SQL_DESCRIPTION.to_string(), 10001+i).await;
+            let _ = wait(s, MY_SQL_DESCRIPTION.to_string(), 9001+i).await;
         });
     }
     

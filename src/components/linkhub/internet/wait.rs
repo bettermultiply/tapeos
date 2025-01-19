@@ -198,7 +198,7 @@ async fn init(name: String, desc: String, port: u16) -> BoxResult<(UdpSocket, Ud
     // let tape_i = SocketAddr::new(IpA/ddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888);
     let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let socket = UdpSocket::bind(addr).await.expect("Failed to bind to socket");
-    let input_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port+40000);
+    let input_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port+20010);
     let input_socket = UdpSocket::bind(input_addr).await.expect("Failed to bind to socket");
 
     let status = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));

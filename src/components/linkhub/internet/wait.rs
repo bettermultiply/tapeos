@@ -117,12 +117,15 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                 let m: Message = parse_message(&buf[..amt]);
                 match m.get_type() {
                     MessageType::Status => {
-                        status_report(&socket, &tape_i.unwrap(), Arc::clone(&status)).await?
+                        status_report(&socket, &tape_i.unwrap(), Arc::clone(&status)).await?;
                     }
                     MessageType::Heartbeat 
                     => heart_beat_report(&socket, &tape_o.unwrap()).await?,
                     MessageType::Finish => {
-                        
+                        // which in wait means break the connect.
+                        *TAPE.lock().await = ResourceType::None;
+                        tape_i = None;
+                        tape_o = None;
                     }
                     MessageType::Response => {
                         match m.get_body().as_ref() {
@@ -154,6 +157,12 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                             "Duplicate" => {
                             
                             }
+                            "Register First" => {
+                                // knowning the connect broken.
+                                *TAPE.lock().await = ResourceType::None;
+                                tape_i = None;
+                                tape_o = None;
+                            },
                             _ => {
                                 warn!("Do not support such response now. {}", m.get_body());
                             },

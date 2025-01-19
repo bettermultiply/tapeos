@@ -161,7 +161,8 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     => {
                         let c_tape_i = tape_i.clone();
                         let c_m = m.get_body().clone();
-                        tokio::spawn(async move {
+                        let m_id = m.get_id();
+                        // tokio::spawn(async move {
 
                             if END {
                                 execute(&c_m).unwrap();
@@ -171,15 +172,15 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                                     handler(i).await;
                                 }); 
                             }
-                        }); 
-
-                        let m = Message::new(MessageType::Response, "Execute Over".to_string(), m.get_id());
-                        loop {
-                            match send_message(&socket, &c_tape_i.unwrap(), &m).await {
-                                Ok(_) => break,
-                                Err(_e) => (),
+                            let m = Message::new(MessageType::Response, "Execute Over".to_string(), m_id);
+                            
+                            loop {
+                                match send_message(&socket, &c_tape_i.unwrap(), &m).await {
+                                    Ok(_) => break,
+                                    Err(_e) => (),
+                                }
                             }
-                        }
+                        // }); 
                     },
                     _ => { warn!("do not support such intent: {} port: {}", m.get_body(), port); }
                 }

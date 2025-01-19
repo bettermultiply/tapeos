@@ -6,7 +6,6 @@ use bluer::{
 use crate::base::resource::{Interpreter, Resource, ResourceAddress, Status};
 
 pub struct BluetoothResource {
-    usage: i8,
     name: String,
     status: Status,
     address: Address,
@@ -30,7 +29,6 @@ impl BluetoothResource {
         name: String, device: Device, props: Vec<DeviceProperty>, service: Option<Service>, char: Option<Characteristic>
     ) -> Self {
         Self {
-            usage: 0,
             name,
             address: device.address(),
             device, props, service, char, 
@@ -108,11 +106,4 @@ impl Resource for BluetoothResource {
         }
     }
 
-    fn change_usage(&mut self, usage: i8) {
-        self.usage += usage;
-    }
-
-    fn get_usage(&self) -> i8 {
-        self.usage
-    }
 }

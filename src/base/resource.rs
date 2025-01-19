@@ -29,7 +29,6 @@ use serde::{Deserialize, Serialize};
 pub trait Resource: Send + Sync {
     fn get_name(&self) -> &str;
     fn get_description(&self) -> &str;
-    fn get_usage(&self) -> i8;
     fn get_status(&mut self) -> &mut Status;
     fn get_address(&self) -> ResourceAddress;
     fn get_interpreter(&self) -> &Interpreter;
@@ -38,7 +37,6 @@ pub trait Resource: Send + Sync {
     fn set_status(&mut self, status: Status);
     fn set_interpreter(&mut self, interpreter: Interpreter);
     fn set_description(&mut self, description: String);
-    fn change_usage(&mut self, usage: i8);
 
     fn is_interpreter_none(&self) -> bool;
 }
@@ -66,22 +64,39 @@ pub struct Status {
     aviliability: bool,
     // position shows the resource's position.
     position: Position,
+    // dealing means resource now dealing inten number.
+    dealing: u8,
     // busy_time shows how much time the resource need to execute next intent.
-    busy_time: Duration, // TODO: do duration here ok? I need a specific type to describe the time.
+    busy_time: Duration, 
+
+    average_time: Duration, // every average time is calculate by 0.8x(average_time) + 0.2x(busy_time/dealing)  
 }
 
-#[allow(unused)]
 impl Status {
     pub fn new(aviliability: bool, position: (f32, f32, f32), busy_time: Duration) -> Self {
-        Self { aviliability, position: Position::new(position.0, position.1, position.2), busy_time }
+        Self { 
+            aviliability, 
+            position: Position::new(position.0, position.1, position.2), 
+            dealing: 0, 
+            busy_time,
+            average_time: Duration::from_secs(5),
+        }
     }
 
-    fn get_aviliability(&self) -> bool {
+    pub fn get_aviliability(&self) -> bool {
         self.aviliability
     }
 
     pub fn get_position(&self) -> &Position {
         &self.position
+    }
+
+    pub fn get_dealing(&self) -> u8 {
+        self.dealing
+    }
+
+    pub fn get_average_time(&self) -> Duration {
+        self.average_time
     }
 
     pub fn set_aviliability(&mut self, aviliability: bool) {
@@ -91,16 +106,43 @@ impl Status {
     pub fn set_position(&mut self, position: Position) {
         self.position = position;
     }
+    
+    pub fn set_dealing(&mut self, dealing: u8){
+        self.dealing = dealing
+    }
+
+    pub fn set_average_time(&mut self, average_time: Duration) {
+        self.average_time = average_time
+    }
+
+    pub fn get_busy_time(&mut self) -> Duration {
+        self.busy_time
+    }
 
     pub fn set_busy_time(&mut self, busy_time: Duration) {
         self.busy_time = busy_time;
+    }
+
+    pub fn add_busy_time(&mut self, busy_time: Duration) {
+        self.busy_time += busy_time;
+    }
+
+    pub fn change_dealing(&mut self, op: bool) {
+        if op {
+            self.dealing += 1;
+        } else {
+            self.dealing -= 1;
+        }
+    }
+
+    pub fn sub_busy_time(&mut self, busy_time: Duration) {
+        self.busy_time -= busy_time;
     }
 }
 
 // position is a common field for all resources.
 // it is a 3D vector, which can be used to describe the position of the resource.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[allow(unused)]
 pub struct Position {
     pub x: f32,
     pub y: f32,

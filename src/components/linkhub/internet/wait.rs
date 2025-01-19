@@ -1,5 +1,5 @@
 
-use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, str, thread::sleep, time};
+use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, thread::sleep, time};
 
 use log::{info, warn};
 use crate::{
@@ -15,12 +15,12 @@ use crate::{
             resource::InternetResource, 
             seek::TAPE_ADDRESS
         }, 
-        waiter::{ResourceType, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
+        waiter::{ResourceType, ITAPE, TAPE, TAPE_INTENT_QUEUEUE, WAIT_EXEC_ADDR}
     }, 
     core::inxt::intent::{execute, handler}
 };
 
-use tokio::{net::UdpSocket, time::interval};
+use tokio::{net::UdpSocket, sync::Mutex, time::interval};
 
 use super::seek::find_register;
 
@@ -51,6 +51,8 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
 
     let mut tape_i: Option<SocketAddr> = None;
     let mut tape_o: Option<SocketAddr> = None;
+
+    let status = Arc::new(Mutex::new(Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0))));
 
     let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000);
     let v_position: ((f32, f32), (f32, f32), (f32, f32)) = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0));
@@ -115,7 +117,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                 let m: Message = parse_message(&buf[..amt]);
                 match m.get_type() {
                     MessageType::Status => {
-                        status_report(&socket, &tape_i.unwrap()).await?
+                        status_report(&socket, &tape_i.unwrap(), Arc::clone(&status)).await?
                     }
                     MessageType::Heartbeat 
                     => heart_beat_report(&socket, &tape_o.unwrap()).await?,
@@ -159,28 +161,32 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     },
                     MessageType::Intent 
                     => {
+                        let c_status = Arc::clone(&status);
                         let c_tape_i = tape_i.clone();
                         let c_m = m.get_body().clone();
-                        let m_id = m.get_id();
-                        // tokio::spawn(async move {
+                        let m_id = m.get_id().clone();
+                        tokio::spawn(async move {
 
                             if END {
-                                execute(&c_m).unwrap();
+                                execute(&c_m, c_status).await.unwrap();
                             } else {
                                 let i: Intent = Intent::new(c_m.clone(), IntentSource::Tape, IntentType::Intent, Some("TAPE".to_string()));
-                                tokio::spawn(async {
-                                    handler(i).await;
-                                }); 
+                                handler(i).await;
                             }
                             let m = Message::new(MessageType::Response, "Execute Over".to_string(), m_id);
-                            
+                            let addr = WAIT_EXEC_ADDR.lock();
+                            let s = UdpSocket::bind(addr.await.clone()).await.unwrap();
                             loop {
-                                match send_message(&socket, &c_tape_i.unwrap(), &m).await {
-                                    Ok(_) => break,
+                                match send_message(&s, &c_tape_i.unwrap(), &m).await {
+                                    Ok(_) => {
+                                        let _ = s;
+                                        let _ = addr;
+                                        break;
+                                    },
                                     Err(_e) => (),
                                 }
                             }
-                        // }); 
+                        }); 
                     },
                     _ => { warn!("do not support such intent: {} port: {}", m.get_body(), port); }
                 }
@@ -227,8 +233,8 @@ async fn heart_beat_report(socket: &UdpSocket, tape_o: &SocketAddr) -> BoxResult
     Ok(())
 }
 
-async fn status_report(socket: &UdpSocket, tape_i: &SocketAddr) -> BoxResult<()>{
-    let s = Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0));
+async fn status_report(socket: &UdpSocket, tape_i: &SocketAddr, status: Arc<Mutex<Status>>) -> BoxResult<()>{
+    let s = status.lock().await.clone();
     let s_json = serde_json::to_string(&s)?;
     let h = Message::new(MessageType::Intent, s_json, None);
     let h_json = serde_json::to_string(&h)?;

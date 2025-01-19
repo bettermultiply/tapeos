@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct InternetResource {
-    usage: i8,
     name: String,
     status: Status,
     description: String,
@@ -16,7 +15,7 @@ pub struct InternetResource {
 impl InternetResource {
     pub fn new(name: String, description: String, address: SocketAddr, status: Status) -> Self {
         Self {
-            usage: 0, name, description, address, status, interpreter: Interpreter::None
+            name, description, address, status, interpreter: Interpreter::None
         }
     }
 
@@ -79,11 +78,4 @@ impl Resource for InternetResource {
         }
     }
 
-    fn change_usage(&mut self, usage: i8) {
-        self.usage += usage;
-    }
-
-    fn get_usage(&self) -> i8 {
-        self.usage
-    }
 }

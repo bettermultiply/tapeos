@@ -2,7 +2,7 @@ use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, str, thread::sleep, time::{Durati
 
 use log::{info, warn};
 use tapeos::{
-    base::{errort::BoxResult, message::{Message, MessageType}, resource::Status}, components::linkhub::internet::{resource::InternetResource, seek::{seek, NOW, TAPE_ADDRESS}, wait::wait}, core::inxt::intent::random_execute, tools::{idgen::init_id_generator, rserver::tape_server}
+    base::{errort::BoxResult, message::{Message, MessageType}, resource::Status}, components::linkhub::internet::{resource::InternetResource, seek::{seek, NOW, TAPE_ADDRESS}, wait::wait}, tools::{idgen::init_id_generator, rserver::tape_server}
 };
 use tokio::net::UdpSocket;
 
@@ -91,7 +91,7 @@ async fn register(name: String, desc: String, port: u16) -> BoxResult<()>{
                 match m.get_type() {
                     MessageType::Heartbeat => heart_beat_report(&socket, &tape).await?,
                     MessageType::Intent => {
-                    random_execute(&m.get_body())?;
+                    // execute(&m.get_body(), Duration::from_secs(0)). await?;
                         loop {
                             let m = Message::new(MessageType::Response, "Over".to_string(), m.get_id());
                             

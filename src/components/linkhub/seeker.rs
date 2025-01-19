@@ -123,37 +123,46 @@ pub async fn fresh_resource_status(name: &str, s: Status) -> bool {
     false
 }
 
-pub async fn change_resource_usage(name: &str, usage: bool) -> bool {
-    let u = if usage {1} else {-1};
+// if op is true add one dealing
+pub async fn change_resource_dealing(name: &str, op: bool) {
+
     match INTERNET_RESOURCES.lock().await.get(name) {
         Some(r) => {
-            r.lock().await.change_usage(u);
+            r.lock().await.get_status().change_dealing(op);
         },
         None => (),
     }
     match BLUETOOTH_RESOURCES.lock().await.get(name) {
         Some(r) => {
-            r.lock().await.change_usage(u);
+            r.lock().await.get_status().change_dealing(op);
         },
         None => (),
     } 
-    false
 }
 
-pub async fn get_resource_usage(name: &str) -> i8 {
+pub async fn calculate_base_dealing(name: &str) -> u64 {
+
     match INTERNET_RESOURCES.lock().await.get(name) {
         Some(r) => {
-            return r.lock().await.get_usage();
+
+            let dealing = r.lock().await.get_status().get_dealing() as u64;
+            let average_time = r.lock().await.get_status().get_average_time().as_secs();
+            let busy_time = r.lock().await.get_status().get_busy_time().as_secs();
+            return dealing*average_time + busy_time;
         },
         None => (),
     }
     match BLUETOOTH_RESOURCES.lock().await.get(name) {
         Some(r) => {
-            return r.lock().await.get_usage();
+            let dealing = r.lock().await.get_status().get_dealing() as u64;
+            let average_time = r.lock().await.get_status().get_average_time().as_secs();
+            let busy_time = r.lock().await.get_status().get_busy_time().as_secs();
+            return dealing*average_time + busy_time;
         },
         None => (),
     } 
-    std::i8::MAX
+
+    u64::MAX
 }
 
 pub async fn get_resource_status_str(name: &str) -> String {

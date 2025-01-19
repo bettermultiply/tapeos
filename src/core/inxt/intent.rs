@@ -2,14 +2,15 @@
 
 use log::info;
 use rand::Rng;
+use tokio::sync::Mutex;
 
 use crate::{
-    base::{errort::BoxResult, intent::Intent}, components::linkhub::seeker::{reject_intent, INTENT_QUEUE}, core::inxt::{
+    base::{errort::BoxResult, intent::Intent, resource::Status}, components::linkhub::seeker::{reject_intent, INTENT_QUEUE}, core::inxt::{
         disassembler::disassembler, monitor::monitor, preprocess::{process, JudgeResult}, router::router,
     }
 };
 
-use std::{thread::sleep, time};
+use std::{sync::Arc, thread::sleep, time::Duration};
 
 // this function is used to execute the intent.
 // it connect the whole inxt process.
@@ -52,14 +53,18 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
 }
 
 // execute is used to execute the intent route to itself.
-pub fn execute(intent: &str) -> BoxResult<()> {
-    random_execute(intent)
+pub async fn execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<()> {
+    random_execute(intent, status).await
 }
 
-pub fn random_execute(intent: &str) -> BoxResult<()> {
-    let random_sleep_duration = rand::thread_rng().gen_range(1..=intent.len()); // Random duration between 1 and 5 seconds
+pub async fn random_execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<()> {
+    let random_sleep_duration = rand::thread_rng().gen_range(1..=intent.len()) as u64; // Random duration between 1 and 5 seconds
     info!("execute {} in {} seconds", intent, random_sleep_duration);
-    // tokio::time::sleep(tokio::time::Duration::from_secs(random_sleep_duration as u64)).await;
-    sleep(time::Duration::from_secs(random_sleep_duration as u64));  
+    let exec_time = Duration::from_secs(random_sleep_duration);
+    status.lock().await.add_busy_time(exec_time);
+    status.lock().await.change_dealing(true);
+    sleep(exec_time);  
+    status.lock().await.change_dealing(false);
+    status.lock().await.sub_busy_time(exec_time);
     Ok(())
 }

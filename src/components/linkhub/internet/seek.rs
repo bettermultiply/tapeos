@@ -16,7 +16,7 @@ use crate::{
     },
     components::linkhub::{
         internet::resource::InternetResource,
-        seeker::{change_resource_usage, reject_intent, INTENT_QUEUE, INTERNET_RESOURCES},
+        seeker::{change_resource_dealing, reject_intent, INTENT_QUEUE, INTERNET_RESOURCES},
     },
     core::inxt::{
         intent::handler, 
@@ -182,7 +182,7 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             let m = Message::new(MessageType::Response, m_body, None);
             let m_json = serde_json::to_string(&m)?;
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
-            info!("Send Over: {}", m.get_body());
+            // info!("Send Over: {}", m.get_body());
         },
         MessageType::Reject => {
             let id = m.get_id().unwrap();
@@ -289,7 +289,7 @@ async fn mark_complete(sub_id: i64) ->BoxResult<()> {
             if ii.get_id() != sub_id { continue; }
             ii.complete();
             let name = ii.get_selected_resource().unwrap();
-            change_resource_usage(name, false).await;
+            change_resource_dealing(name, false).await;
             c = true;
         }
 

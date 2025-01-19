@@ -15,7 +15,7 @@ use crate::{
             resource::InternetResource, 
             seek::TAPE_ADDRESS
         }, 
-        waiter::{ResourceType, ITAPE, TAPE, TAPE_INTENT_QUEUEUE, WAIT_EXEC_ADDR}
+        waiter::{ResourceType, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
     }, 
     core::inxt::intent::{execute, handler}
 };
@@ -51,7 +51,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
 
     let mut tape_i: Option<SocketAddr> = None;
     let mut tape_o: Option<SocketAddr> = None;
-
+    let socket = Arc::new(socket);
     let status = Arc::new(Mutex::new(Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0))));
 
     let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000);
@@ -161,6 +161,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     },
                     MessageType::Intent 
                     => {
+                        let c_socket = Arc::clone(&socket);
                         let c_status = Arc::clone(&status);
                         let c_tape_i = tape_i.clone();
                         let c_m = m.get_body().clone();
@@ -174,13 +175,9 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                                 handler(i).await;
                             }
                             let m = Message::new(MessageType::Response, "Execute Over".to_string(), m_id);
-                            let addr = WAIT_EXEC_ADDR.lock();
-                            let s = UdpSocket::bind(addr.await.clone()).await.unwrap();
                             loop {
-                                match send_message(&s, &c_tape_i.unwrap(), &m).await {
+                                match send_message(&c_socket, &c_tape_i.unwrap(), &m).await {
                                     Ok(_) => {
-                                        let _ = s;
-                                        let _ = addr;
                                         break;
                                     },
                                     Err(_e) => (),

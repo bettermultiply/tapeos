@@ -133,6 +133,10 @@ impl SubIntent {
         self.routed.clone()
     }
 
+    pub fn set_routed(&mut self) {
+        self.routed = Instant::now()
+    }
+
     pub fn iter_available_resources(&self) -> impl Iterator<Item = &String> {
         self.available_resources.iter()
     }

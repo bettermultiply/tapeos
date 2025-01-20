@@ -1,11 +1,17 @@
 // in this file, we will implement the monitor for the intent execution.
 // the monitor will monitor the execution of the intent and provide the feedback to the higher level system.
 
-use std::{thread::sleep, time::Duration};
+use std::{sync::Arc, thread::sleep, time::Duration};
 
+use lazy_static::lazy_static;
 use log::info;
+use tokio::sync::Mutex;
 
 use crate::components::linkhub::{internet::seek::complete_intent, seeker::INTENT_QUEUE};
+
+lazy_static! {
+    pub static ref times: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+}
 
 pub async fn monitor(id: i64) {
     info!("monitor: Start to monitor intent");
@@ -24,7 +30,7 @@ pub async fn monitor(id: i64) {
 
         }
         let _ = i_q;
-        sleep(Duration::from_secs(1));
+        sleep(Duration::from_secs(2));
     }
 }
 

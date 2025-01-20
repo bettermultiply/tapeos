@@ -1,6 +1,6 @@
 use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, str, thread::sleep, time::Duration};
 
-use log::{info, warn};
+use log::{info, warn, error};
 use tapeos::{
     base::{errort::BoxResult, message::{Message, MessageType}, resource::Status}, components::linkhub::internet::{resource::InternetResource, seek::{seek, TAPE_ADDRESS}, wait::wait}, tools::{idgen::init_id_generator, rserver::tape_server}
 };
@@ -44,10 +44,10 @@ async fn main() {
         let _ = seek().await;
     });
     sleep(Duration::from_secs(1));
-    sleep(Duration::from_secs(100));
+    sleep(Duration::from_secs(1000));
     
     // intent::handler(intent).await;
-    info!("main: Try ended");
+    error!("main: Try ended");
 }
 
 #[allow(warnings)]

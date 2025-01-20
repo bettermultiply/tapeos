@@ -10,7 +10,7 @@
 use std::{
     collections::HashMap, sync::{
         mpsc::{Receiver, Sender}, Arc
-    }
+    }, time::Duration
 };
 use lazy_static::lazy_static;
 use log::info;
@@ -139,6 +139,41 @@ pub async fn change_resource_dealing(name: &str, op: bool) {
         None => (),
     } 
 }
+
+pub async fn add_resource_total_busy(name: &str, d: Duration) -> Duration {
+
+    match INTERNET_RESOURCES.lock().await.get(name) {
+        Some(r) => {
+            return r.lock().await.get_status().add_total_busy(d);
+        },
+        None => (),
+    }
+    match BLUETOOTH_RESOURCES.lock().await.get(name) {
+        Some(r) => {
+            return r.lock().await.get_status().add_total_busy(d);
+        },
+        None => (),
+    } 
+    Duration::from_secs(0)
+}
+
+pub async fn get_resource_average_busy(name: &str) -> Duration {
+
+    match INTERNET_RESOURCES.lock().await.get(name) {
+        Some(r) => {
+            return r.lock().await.get_status().get_average_time();
+        },
+        None => (),
+    }
+    match BLUETOOTH_RESOURCES.lock().await.get(name) {
+        Some(r) => {
+            return r.lock().await.get_status().get_average_time();
+        },
+        None => (),
+    } 
+    Duration::from_secs(0)
+}
+
 
 pub async fn calculate_base_dealing(name: &str) -> u64 {
 

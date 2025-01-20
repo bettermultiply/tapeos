@@ -62,6 +62,7 @@ macro_rules! execute_with_status {
         $status.lock().await.add_busy_time($exec_time);
         $status.lock().await.change_dealing(true);
         $status.lock().await.change_average_time($exec_time);
+        $status.lock().await.add_total_busy($exec_time);
         $e;  
         $status.lock().await.change_dealing(false);
         $status.lock().await.sub_busy_time($exec_time);

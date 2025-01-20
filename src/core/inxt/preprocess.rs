@@ -33,7 +33,7 @@ pub async fn process(intent: &mut Intent) -> JudgeResult {
         Err(e) => return JudgeResult::Reject(format_reject(intent.get_description(), &format!("{}", e))),
     }
     
-    info!("process: Filter passed");
+    // info!("process: Filter passed");
     
     match spec_exec(intent).await {
         Ok(()) => (),
@@ -42,7 +42,7 @@ pub async fn process(intent: &mut Intent) -> JudgeResult {
 
     }
 
-    info!("process: Special execution passed");
+    // info!("process: Special execution passed");
 
     JudgeResult::Accept
 }
@@ -116,7 +116,7 @@ async fn essential_judge(intent: &mut Intent) -> BoxResult<()> {
         }
     }
 
-    info!("essential judge: Judge passed");
+    // info!("essential judge: Judge passed");
     Ok(())
 }
 
@@ -130,7 +130,7 @@ async fn user_judge(intent: &mut Intent) -> BoxResult<()> {
         }
     }
 
-    info!("user judge: Judge passed");
+    // info!("user judge: Judge passed");
     Ok(())
 }
 

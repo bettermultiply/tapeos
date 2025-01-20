@@ -125,7 +125,11 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     MessageType::Heartbeat 
                     => heart_beat_report(&socket, &tape_o.unwrap()).await?,
                     MessageType::Finish => {
-                        
+                        *TAPE.lock().await = ResourceType::None;
+                        tape_i = None;
+                        tape_o = None;
+                        println!("{name}: {};{}", usage_times.lock().await, usage_time.lock().await);
+                        return Ok(());
                     }
                     MessageType::Response => {
                         match m.get_body().as_ref() {
@@ -156,7 +160,13 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                             },
                             "Duplicate" => {
                             
-                            }
+                            },
+                            "Register First" => {
+                                // knowning the connect broken.
+                                *TAPE.lock().await = ResourceType::None;
+                                tape_i = None;
+                                tape_o = None;
+                            },
                             _ => {
                                 warn!("Do not support such response now. {}", m.get_body());
                             },
@@ -177,6 +187,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                                 let x = execute(&c_m, c_status).await.unwrap();
                                 *c_time.lock().await += x;
                                 *c_times.lock().await += 1;
+                                // println!("{};{}", c_time.lock().await, c_times.lock().await);
                             } else {
                                 let i: Intent = Intent::new(c_m.clone(), IntentSource::Tape, IntentType::Intent, Some("TAPE".to_string()));
                                 handler(i).await;

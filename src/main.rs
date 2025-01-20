@@ -22,21 +22,21 @@ async fn main() {
     
     // let intent = Intent::new("store my name".to_string(), IntentSource::Resource, IntentType::Intent, None);
     // *NOW.lock().await = Instant::now();
-    // for i in 0..10000 {
-    //     tokio::spawn(async move {
-    //         let s = format!("MySQL{i}");
-    //         let _ = wait(s, MY_SQL_DESCRIPTION.to_string(), 9001+i).await;
-    //     });
-    // }
-    tokio::spawn(async {
-        let _ = wait("MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 8001).await;
-    });
-    tokio::spawn(async {
-        let _ = wait("MongoDB".to_string(), MONGO_DB_DESCRIPTION.to_string(), 8002).await;
-    });
-    tokio::spawn(async {
-        let _ = wait("GooGle Drive".to_string(), GOO_GLE_DRIVE_DESCRIPTION.to_string(), 8003).await;
-    });
+    for i in 0..10 {
+        tokio::spawn(async move {
+            let s = format!("MySQL{i}");
+            let _ = wait(s, MY_SQL_DESCRIPTION.to_string(), 9001+i).await;
+        });
+    }
+    // tokio::spawn(async {
+        // let _ = wait("MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 8001).await;
+    // });
+    // tokio::spawn(async {
+    //     let _ = wait("MongoDB".to_string(), MONGO_DB_DESCRIPTION.to_string(), 8002).await;
+    // });
+    // tokio::spawn(async {
+    //     let _ = wait("GooGle Drive".to_string(), GOO_GLE_DRIVE_DESCRIPTION.to_string(), 8003).await;
+    // });
     tokio::spawn(async move {
         let _ = wait("Intent input".to_string(), INTENT_INPUT_DESCRIPTION.to_string(), 8004).await;
     });

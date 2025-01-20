@@ -44,7 +44,7 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
     INTENT_QUEUE.lock().await.push(intent);
     
 
-    monitor(id).await;
+    // monitor(id).await;
 
     // complete should report completion to tape monitor.
     // intent.complete();

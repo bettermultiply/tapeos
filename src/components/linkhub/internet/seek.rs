@@ -82,7 +82,7 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
     find_register(SOCKET.lock().await.as_ref().unwrap(), true, v_position).await; 
     // every 60 seconds, check if the socket addresses are still valid
     let mut heartbeat_inter = interval(Duration::from_secs(200));
-    let mut reroute_inter = interval(Duration::from_secs(60));
+    let mut reroute_inter = interval(Duration::from_secs(60000));
     let mut status_inter = interval(Duration::from_secs(10));
     
     loop {
@@ -95,30 +95,30 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
                 });
             },
             _ = reroute_inter.tick() => {
-                const EXPIRE_D: Duration = Duration::from_secs(60);
-                let mut i_q = INTENT_QUEUE.lock().await;
-                let mut id = 0;
-                for i in i_q.iter_mut() {
-                    let mut c: bool = false;
-                    for s_i in i.iter_sub_intent() {
-                        let live = Instant::now() - s_i.get_routed();
-                        if live > EXPIRE_D {
-                            error!("reroute sub_intent: {} {}", s_i.get_description(), s_i.get_selected_resource().unwrap());
-                            match reroute(s_i).await {
-                                Ok(()) => {},
-                                Err(e) => {
-                                    warn!("{}", e);
-                                    c = true;
-                                },
-                            }
-                        }
-                    }
-                    if c {
-                        reject_intent(i.get_resource().unwrap().to_string(), i.get_description()).await?;
-                        id = i.get_id();
-                    }
-                }
-                i_q.retain(|i| i.get_id() != id);
+                // const EXPIRE_D: Duration = Duration::from_secs(60);
+                // let mut i_q = INTENT_QUEUE.lock().await;
+                // let mut id = 0;
+                // for i in i_q.iter_mut() {
+                //     let mut c: bool = false;
+                //     for s_i in i.iter_sub_intent() {
+                //         let live = Instant::now() - s_i.get_routed();
+                //         if s_i.is_complete() && live > EXPIRE_D {
+                //             error!("reroute sub_intent: {} {}", s_i.get_description(), s_i.get_selected_resource().unwrap());
+                //             match reroute(s_i).await {
+                //                 Ok(()) => {},
+                //                 Err(e) => {
+                //                     warn!("{}", e);
+                //                     c = true;
+                //                 },
+                //             }
+                //         }
+                //     }
+                //     if c {
+                //         reject_intent(i.get_resource().unwrap().to_string(), i.get_description()).await?;
+                //         id = i.get_id();
+                //     }
+                // }
+                // i_q.retain(|i| i.get_id() != id);
             },
             // heartbeat
             _ = heartbeat_inter.tick() => {
@@ -188,7 +188,7 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
         },
         MessageType::Response => {
-            info!("Get Response: {}", m.get_body());
+            // println!("Get Response: {}", m.get_body());
             mark_complete(m.get_id().unwrap_or(0)).await?;
             let mut m_body: String = "Success".to_string();
             if m.get_body() == "Execute Over".to_string() {
@@ -301,7 +301,9 @@ async fn find_resource_by_addr(addr: &SocketAddr) -> Option<String> {
 async fn mark_complete(sub_id: i64) ->BoxResult<()> {
     // let mut id = 0;
     // let mut name: &str = "";
-    for i in INTENT_QUEUE.lock().await.iter_mut() {
+    let mut i_q = INTENT_QUEUE.lock().await;
+    for i in i_q.iter_mut() {
+    // for i in INTENT_QUEUE.lock().await.iter_mut() {
         let mut c = false;
         for ii in i.iter_sub_intent() {
             if ii.get_id() != sub_id || ii.is_complete() { continue; }
@@ -311,6 +313,12 @@ async fn mark_complete(sub_id: i64) ->BoxResult<()> {
         }
 
         if c {
+            if i.is_complete() {
+                complete_intent(i).await.unwrap();
+                let id = i.get_id();
+                i_q.retain(|i| i.get_id() != id);
+                info!("Handler Over");
+            }
             // we can not sub here for we should sub by status flash
             // change_resource_dealing(name, false).await;
             break;

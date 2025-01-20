@@ -234,6 +234,7 @@ async fn message_handler(
                         Err(_e) => (),
                     }
                 }
+                println!("send");
             }); 
         },
         _ => { warn!("do not support such intent: {} ", m.get_body()); }

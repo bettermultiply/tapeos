@@ -7,7 +7,6 @@
 //         ->reject
 // any time, true means pass the test.
 use chrono::{Local, Datelike};
-use log::info;
 use std::process::Command;
 
 use crate::{

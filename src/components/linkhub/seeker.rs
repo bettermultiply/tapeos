@@ -176,6 +176,10 @@ pub async fn get_resource_average_busy(name: &str) -> Duration {
     Duration::from_secs(0)
 }
 
+pub async fn remove_resource_by_name(name: &str) {
+    INTERNET_RESOURCES.lock().await.remove(name);
+    BLUETOOTH_RESOURCES.lock().await.remove(name);
+}
 
 pub async fn calculate_base_dealing(name: &str) -> u64 {
 
@@ -217,8 +221,6 @@ pub async fn get_resource_status_str(name: &str) -> String {
     } 
     "".to_string()
 }
-
-
 
 async fn send_message_bluetooth(r: Arc<Mutex<BluetoothResource>>, i: &str, i_type: MessageType, id: Option<i64>) -> BoxResult<()> {
     let r = r.lock().await;

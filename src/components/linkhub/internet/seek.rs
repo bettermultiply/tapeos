@@ -1,18 +1,15 @@
 // use std::time;
 use std::{
-    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, thread::sleep, time::Instant
+    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, time::Instant
 };
 use log::{info, error, warn};
 use tokio::{
-    net::UdpSocket,
-    time::{Duration, interval},
-    sync::Mutex,
-    sync::mpsc::{self, Receiver, Sender}
+    net::UdpSocket, sync::{mpsc::{self, Receiver, Sender}, Mutex, OnceCell}, time::{interval, Duration}
 };
 use lazy_static::lazy_static; 
 use crate::{
     base::{
-        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::{Interpreter, Position, RegisterServer, Resource} 
+        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::{Interpreter, RegisterServer, Resource} 
     },
     components::linkhub::{
         internet::resource::InternetResource,
@@ -34,6 +31,7 @@ macro_rules! get_udp {
 pub const TAPE_ADDRESS: &str = "127.0.0.1:8888";
 lazy_static! {
     pub static ref SOCKET: Mutex<Option<UdpSocket>> = Mutex::new(None);
+    pub static ref VAL: OnceCell<Instant> = OnceCell::const_new();
 }
 
 pub async fn seek() -> BoxResult<()> {
@@ -84,8 +82,11 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
     find_register(SOCKET.lock().await.as_ref().unwrap(), true, v_position).await; 
     // every 60 seconds, check if the socket addresses are still valid
     let mut heartbeat_inter = interval(Duration::from_secs(200));
-    let mut reroute_inter = interval(Duration::from_secs(60));
+    let mut reroute_inter = interval(Duration::from_secs(600));
     let mut status_inter = interval(Duration::from_secs(10));
+    heartbeat_inter.tick().await;
+    reroute_inter.tick().await;
+    status_inter.tick().await;
     
     loop {
         tokio::select! {
@@ -126,16 +127,18 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
             _ = heartbeat_inter.tick() => {
                 // Check stored socket addresses are still valid
                 // info!("sending heart beat to check whether resource alive.");
-                // TODO: may error here.
                 tokio::spawn(async {
                     send_heartbeat().await.unwrap();
                 });
             },
-            _ = status_inter.tick() => {
+            _ = status_inter.tick() => { // first tick complete immediately
                 tokio::spawn(async move {
+                    // VAL.get_or_init(|| async {Instant::now()}).await;
+                    VAL.get_or_init(|| async {Instant::now()}).await;
+                    // println!("{}", VAL.get().unwrap().elapsed().as_nanos()); 
                     query_status().await.unwrap();
-                    sleep(Duration::from_secs(5));
-                    check_status().await;
+                    // sleep(Duration::from_secs(5));
+                    // check_status().await;
                 });
             },
         }
@@ -242,10 +245,6 @@ fn parse_message(message: &str) -> Message{
             parse_unknown(message)
         },
     }
-}
-
-lazy_static! {
-    pub static ref NOW: Arc<Mutex<Instant>> = Arc::new(Mutex::new(Instant::now()));
 }
 
 async fn store_resource(resource: InternetResource) -> Option<()> {
@@ -394,28 +393,19 @@ pub async fn send_message_internet(r: tokio::sync::MutexGuard<'_, InternetResour
 async fn query_status() -> BoxResult<()> {
     let m = Message::new(MessageType::Status, "".to_string(), None);
     let m_json = serde_json::to_string(&m)?;
+    let buf = &m_json.as_bytes().to_vec();
     for s in INTERNET_RESOURCES.lock().await.values() {
         let addr = s.lock().await.get_address().clone();
-        let buf = &m_json.as_bytes().to_vec();
         SOCKET.lock().await.as_ref().unwrap().send_to(buf, addr).await?;
     }
     Ok(())
 }
 
-async fn check_status() {
-    for s in INTERNET_RESOURCES.lock().await.values() {
-        let mut s = s.lock().await;
-        let status = s.get_status();
-        check_position(&status.get_position());
-    }
-}
+// async fn check_status() {
+//     for s in INTERNET_RESOURCES.lock().await.values() {
+//         let mut s = s.lock().await;
+//         let status = s.get_status();
+//         check_position(&status.get_position());
+//     }
+// }
 
-fn check_position(p: &Position) -> bool {
-    let v_position = ((-100.0, 100.0), (-100.0, 100.0), (-100.0, 100.0));
-        p.x > (v_position.0).0 
-    &&  p.x < (v_position.0).1
-    &&  p.y > (v_position.1).0
-    &&  p.y < (v_position.1).1
-    &&  p.z > (v_position.2).0
-    &&  p.z < (v_position.2).1
-}

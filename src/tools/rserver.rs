@@ -2,7 +2,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 
-use log::{info, warn};
+use log::warn;
 
 use crate::base::resource::RegisterServer;
 

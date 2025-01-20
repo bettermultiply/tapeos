@@ -89,7 +89,7 @@ async fn score(sub_intent: &str, resource: &str) -> u64 {
             score_by_ai(sub_intent, resource).await
         },
         "usage" => {
-            u64::MAX - calculate_base_dealing(resource).await * add_resource_total_busy(resource, Duration::from_secs(0)).await.as_secs()
+            u64::MAX - (1 + calculate_base_dealing(resource).await) * add_resource_total_busy(resource, Duration::from_secs(0)).await.as_secs()
         },
         _ => {
             // which means just use resource in turn

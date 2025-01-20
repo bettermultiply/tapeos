@@ -1,6 +1,6 @@
 // use std::time;
 use std::{
-    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, thread::sleep, time::Instant
+    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, time::Instant
 };
 use log::{info, error, warn};
 use tokio::{
@@ -12,7 +12,7 @@ use tokio::{
 use lazy_static::lazy_static; 
 use crate::{
     base::{
-        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::{Interpreter, Position, RegisterServer, Resource} 
+        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::{Interpreter, RegisterServer, Resource} 
     },
     components::linkhub::{
         internet::resource::InternetResource,
@@ -134,8 +134,8 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
             _ = status_inter.tick() => {
                 tokio::spawn(async move {
                     query_status().await.unwrap();
-                    sleep(Duration::from_secs(5));
-                    check_status().await;
+                    // sleep(Duration::from_secs(5));
+                    // check_status().await;
                 });
             },
         }
@@ -402,20 +402,11 @@ async fn query_status() -> BoxResult<()> {
     Ok(())
 }
 
-async fn check_status() {
-    for s in INTERNET_RESOURCES.lock().await.values() {
-        let mut s = s.lock().await;
-        let status = s.get_status();
-        check_position(&status.get_position());
-    }
-}
+// async fn check_status() {
+//     for s in INTERNET_RESOURCES.lock().await.values() {
+//         let mut s = s.lock().await;
+//         let status = s.get_status();
+//         check_position(&status.get_position());
+//     }
+// }
 
-fn check_position(p: &Position) -> bool {
-    let v_position = ((-100.0, 100.0), (-100.0, 100.0), (-100.0, 100.0));
-        p.x > (v_position.0).0 
-    &&  p.x < (v_position.0).1
-    &&  p.y > (v_position.1).0
-    &&  p.y < (v_position.1).1
-    &&  p.z > (v_position.2).0
-    &&  p.z < (v_position.2).1
-}

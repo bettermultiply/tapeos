@@ -125,6 +125,11 @@ pub async fn fresh_resource_status(name: &str, s: Status) -> bool {
     false
 }
 
+pub async fn remove_resource_by_name(name: &str){
+    INTERNET_RESOURCES.lock().await.remove(name);
+    BLUETOOTH_RESOURCES.lock().await.remove(name);
+}
+
 // if op is true add one dealing
 pub async fn change_resource_dealing(name: &str, op: bool) {
 

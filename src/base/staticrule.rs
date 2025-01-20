@@ -7,11 +7,13 @@ use crate::base::intent::Intent;
 use crate::base::intent::IntentType;
 use crate::components::linkhub::internet::seek::SOCKET;
 use crate::components::linkhub::seeker::fresh_resource_status;
+use crate::components::linkhub::seeker::remove_resource_by_name;
 use crate::components::linkhub::seeker::BLUETOOTH_RESOURCES;
 use crate::components::linkhub::seeker::INTERNET_RESOURCES;
 
 use super::errort::BoxResult;
 use super::errort::JudgeError;
+use super::resource::Position;
 use super::resource::Status;
 use super::rule::Rule;
 use super::rule::RuleDetail;
@@ -108,8 +110,22 @@ pub async fn status(intent: &Intent) -> bool {
 
 async fn try_fresh2status(i: &str, name: &str) -> BoxResult<()> {
     let status: Status = serde_json::from_str(i)?;
+    if !check_position(status.get_position()) {
+        remove_resource_by_name(name).await;
+        return Ok(());
+    }
     fresh_resource_status(name, status).await;
     Ok(())
+}
+
+fn check_position(p: &Position) -> bool {
+    let v_position = ((-100.0, 100.0), (-100.0, 100.0), (-100.0, 100.0));
+        p.x > (v_position.0).0 
+    &&  p.x < (v_position.0).1
+    &&  p.y > (v_position.1).0
+    &&  p.y < (v_position.1).1
+    &&  p.z > (v_position.2).0
+    &&  p.z < (v_position.2).1
 }
 
 pub async fn direct(intent: &Intent) -> bool {

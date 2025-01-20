@@ -394,9 +394,9 @@ pub async fn send_message_internet(r: tokio::sync::MutexGuard<'_, InternetResour
 async fn query_status() -> BoxResult<()> {
     let m = Message::new(MessageType::Status, "".to_string(), None);
     let m_json = serde_json::to_string(&m)?;
+    let buf = &m_json.as_bytes().to_vec();
     for s in INTERNET_RESOURCES.lock().await.values() {
         let addr = s.lock().await.get_address().clone();
-        let buf = &m_json.as_bytes().to_vec();
         SOCKET.lock().await.as_ref().unwrap().send_to(buf, addr).await?;
     }
     Ok(())

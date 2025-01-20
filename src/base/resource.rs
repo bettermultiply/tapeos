@@ -1,3 +1,4 @@
+
 // in this file, we will maintain the information and status of resources
 // and provide the interface for other components to access and update the 
 // information.
@@ -65,10 +66,10 @@ pub struct Status {
     // position shows the resource's position.
     position: Position,
     // dealing means resource now dealing inten number.
-    dealing: u8,
+    dealing: u64,
+    total_busy: Duration,
     // busy_time shows how much time the resource need to execute next intent.
     busy_time: Duration, 
-
     average_time: Duration, // every average time is calculate by 0.8x(average_time) + 0.2x(busy_time/dealing)  
 }
 
@@ -78,8 +79,9 @@ impl Status {
             aviliability, 
             position: Position::new(position.0, position.1, position.2), 
             dealing: 0, 
+            total_busy: Duration::from_secs(0), 
             busy_time,
-            average_time: Duration::from_secs(5),
+            average_time: Duration::from_secs(10),
         }
     }
 
@@ -91,8 +93,17 @@ impl Status {
         &self.position
     }
 
-    pub fn get_dealing(&self) -> u8 {
+    pub fn get_dealing(&self) -> u64 {
         self.dealing
+    }
+
+    pub fn get_total_busy(&self) -> Duration {
+        self.total_busy
+    }
+
+    pub fn add_total_busy(&mut self, t: Duration) -> Duration {
+        self.total_busy += t;
+        self.total_busy
     }
 
     pub fn get_average_time(&self) -> Duration {
@@ -106,13 +117,9 @@ impl Status {
     pub fn set_position(&mut self, position: Position) {
         self.position = position;
     }
-    
-    pub fn set_dealing(&mut self, dealing: u8){
-        self.dealing = dealing
-    }
 
-    pub fn change_average_time(&mut self, last_execute: Duration) {
-        self.average_time = self.average_time.mul_f32(0.9) + last_execute.mul_f32(0.1)
+    pub fn change_average_time(&mut self, exec_time: Duration) {
+        self.average_time = self.average_time.mul_f32(0.9) + exec_time.mul_f32(0.1);
     }
 
     pub fn get_busy_time(&mut self) -> Duration {
@@ -134,7 +141,7 @@ impl Status {
             self.dealing -= 1;
         }
     }
-    
+
     pub fn sub_busy_time(&mut self, busy_time: Duration) {
         self.busy_time -= busy_time;
     }

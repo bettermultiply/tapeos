@@ -1,3 +1,4 @@
+
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
 
 use std::time::Instant;
@@ -133,6 +134,10 @@ impl SubIntent {
         self.routed.clone()
     }
 
+    pub fn set_routed(&mut self) {
+        self.routed = Instant::now()
+    }
+
     pub fn iter_available_resources(&self) -> impl Iterator<Item = &String> {
         self.available_resources.iter()
     }
@@ -177,4 +182,3 @@ impl SubIntent {
         self.available_resources.is_empty()
     }
 }
-

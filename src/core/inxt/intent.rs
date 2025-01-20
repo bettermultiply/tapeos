@@ -53,26 +53,26 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
 }
 
 // execute is used to execute the intent route to itself.
-pub async fn execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<()> {
+pub async fn execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<u64> {
     random_execute(intent, status).await
 }
-
 
 macro_rules! execute_with_status {
     { $e:expr, $status:ident, $exec_time:ident } => { 
         $status.lock().await.add_busy_time($exec_time);
         $status.lock().await.change_dealing(true);
         $status.lock().await.change_average_time($exec_time);
+        $status.lock().await.add_total_busy($exec_time);
         $e;  
         $status.lock().await.change_dealing(false);
         $status.lock().await.sub_busy_time($exec_time);
     }
 }
 
-pub async fn random_execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<()> {
+pub async fn random_execute(intent: &str, status: Arc<Mutex<Status>>) -> BoxResult<u64> {
     let random_sleep_duration = rand::thread_rng().gen_range(1..=intent.len()) as u64; // Random duration between 1 and 5 seconds
     info!("execute {} in {} seconds", intent, random_sleep_duration);
     let exec_time = Duration::from_secs(random_sleep_duration);
     execute_with_status!(sleep(exec_time), status, exec_time);
-    Ok(())
+    Ok(exec_time.as_secs())
 }

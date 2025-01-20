@@ -24,7 +24,7 @@ pub async fn monitor(id: i64) {
 
         }
         let _ = i_q;
-        sleep(Duration::from_secs(1));
+        sleep(Duration::from_secs(2));
     }
 }
 

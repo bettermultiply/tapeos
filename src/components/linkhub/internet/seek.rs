@@ -1,6 +1,6 @@
 // use std::time;
 use std::{
-    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, time::Instant
+    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, thread::sleep, time::Instant
 };
 use log::{info, error, warn};
 use tokio::{
@@ -16,7 +16,7 @@ use crate::{
     },
     components::linkhub::{
         internet::resource::InternetResource,
-        seeker::{change_resource_dealing, reject_intent, INTENT_QUEUE, INTERNET_RESOURCES},
+        seeker::{reject_intent, INTENT_QUEUE, INTERNET_RESOURCES},
     },
     core::inxt::{
         intent::handler, 
@@ -84,8 +84,8 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
     find_register(SOCKET.lock().await.as_ref().unwrap(), true, v_position).await; 
     // every 60 seconds, check if the socket addresses are still valid
     let mut heartbeat_inter = interval(Duration::from_secs(200));
-    let mut reroute_inter = interval(Duration::from_secs(10));
-    let mut status_inter = interval(Duration::from_secs(60));
+    let mut reroute_inter = interval(Duration::from_secs(60));
+    let mut status_inter = interval(Duration::from_secs(10));
     
     loop {
         tokio::select! {
@@ -98,14 +98,29 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
             },
             _ = reroute_inter.tick() => {
                 const EXPIRE_D: Duration = Duration::from_secs(60);
-                for i in INTENT_QUEUE.lock().await.iter_mut() {
+                let mut i_q = INTENT_QUEUE.lock().await;
+                let mut id = 0;
+                for i in i_q.iter_mut() {
+                    let mut c: bool = false;
                     for s_i in i.iter_sub_intent() {
                         let live = Instant::now() - s_i.get_routed();
                         if live > EXPIRE_D {
-                            reroute(s_i).await?;
+                            error!("reroute sub_intent: {} {}", s_i.get_description(), s_i.get_selected_resource().unwrap());
+                            match reroute(s_i).await {
+                                Ok(()) => {},
+                                Err(e) => {
+                                    warn!("{}", e);
+                                    c = true;
+                                },
+                            }
                         }
                     }
+                    if c {
+                        reject_intent(i.get_resource().unwrap().to_string(), i.get_description()).await?;
+                        id = i.get_id();
+                    }
                 }
+                i_q.retain(|i| i.get_id() != id);
             },
             // heartbeat
             _ = heartbeat_inter.tick() => {
@@ -117,8 +132,11 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
                 });
             },
             _ = status_inter.tick() => {
-                query_status().await?;
-                check_status().await;
+                tokio::spawn(async move {
+                    query_status().await.unwrap();
+                    sleep(Duration::from_secs(5));
+                    check_status().await;
+                });
             },
         }
     }    
@@ -281,23 +299,22 @@ async fn find_resource_by_addr(addr: &SocketAddr) -> Option<String> {
     None
 }
 
+
 async fn mark_complete(sub_id: i64) ->BoxResult<()> {
     // let mut id = 0;
+    // let mut name: &str = "";
     for i in INTENT_QUEUE.lock().await.iter_mut() {
         let mut c = false;
         for ii in i.iter_sub_intent() {
-            if ii.get_id() != sub_id { continue; }
+            if ii.get_id() != sub_id || ii.is_complete() { continue; }
             ii.complete();
-            let name = ii.get_selected_resource().unwrap();
-            change_resource_dealing(name, false).await;
+            // name = ii.get_selected_resource().unwrap();
             c = true;
         }
 
         if c {
-            // if i.is_complete() {
-                // complete_intent(i).await?;
-                // id = i.get_id();
-            // }
+            // we can not sub here for we should sub by status flash
+            // change_resource_dealing(name, false).await;
             break;
         }
     }

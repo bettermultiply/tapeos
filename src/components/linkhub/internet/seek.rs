@@ -125,7 +125,7 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
             // heartbeat
             _ = heartbeat_inter.tick() => {
                 // Check stored socket addresses are still valid
-                info!("sending heart beat to check whether resource alive.");
+                // info!("sending heart beat to check whether resource alive.");
                 // TODO: may error here.
                 tokio::spawn(async {
                     send_heartbeat().await.unwrap();
@@ -164,7 +164,7 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             if m.get_id().is_some() {
                 intent.set_id(m.get_id().unwrap());
             }
-            info!("get intent: {}", intent.get_description());
+            // info!("get intent: {}", intent.get_description());
 
                 match handler(intent).await {
                     JudgeResult::Reject(e) => reject_intent(r.unwrap(), &e).await.unwrap(),
@@ -275,7 +275,6 @@ pub async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>>
     let m_json = serde_json::to_string(&m)?;
     get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
     intent.complete();
-    println!("1");
     Ok(intent.get_id())
 }
 
@@ -378,7 +377,7 @@ async fn interpret_intent(interpreter: &Interpreter, i: &str) -> String {
 }
 
 pub async fn send_message_internet(r: tokio::sync::MutexGuard<'_, InternetResource>, i: &str, m_type: MessageType, id: Option<i64>) -> BoxResult<()> {
-    info!("message start");
+    // info!("message start");
     let addr = r.get_address();
     let message = if r.is_interpreter_none() {
         let m = Message::new(m_type, i.to_string(), id);
@@ -388,7 +387,7 @@ pub async fn send_message_internet(r: tokio::sync::MutexGuard<'_, InternetResour
     };
     let data: Vec<u8> = message.as_bytes().to_vec();
     get_udp!().send_to(&data, addr).await?;
-    info!("message send {addr}");
+    // info!("message send {addr}");
     Ok(())
 }
 

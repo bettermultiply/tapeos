@@ -72,7 +72,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                         }
 
                         let i = Intent::new(m_body.to_string(), IntentSource::Input, IntentType::Intent, None);
-                        info!("send message {m_body}");
+                        // info!("send message {m_body}");
                         
                         // we only send plain text intent so that the bandwidth cost will reduce
                         let m = Message::new(MessageType::Intent, m_body.to_string(), Some(i.get_id()));
@@ -281,7 +281,7 @@ async fn send_message(socket: &UdpSocket, tape_i: &SocketAddr, m: &Message) -> B
 
     match socket.send_to(&m_json.as_bytes().to_vec(), *tape_i).await {
         Ok(_) => {
-            info!("send message successfully: {}, {}", tape_i.port(), m_json);
+            // info!("send message successfully: {}, {}", tape_i.port(), m_json);
         },
         Err(e) => {
             warn!("Failed send to {}: {}, retry later", TAPE_ADDRESS, e);

@@ -10,7 +10,6 @@ use tokio::net::UdpSocket;
 
 #[tokio::main]
 async fn main() {
-    // println!("{:?}", Instant::now());
     info!("main: Try to execute intent");
     env_logger::init();
     init_id_generator();

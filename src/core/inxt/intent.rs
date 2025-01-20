@@ -16,7 +16,7 @@ use std::{sync::Arc, thread::sleep, time::Duration};
 // it connect the whole inxt process.
 // consists of filter, disassembler, router, verifier, monitor.
 pub async fn handler(mut intent: Intent) -> JudgeResult {
-    info!("handler: Start to execute intent");
+    // info!("handler: Start to execute intent");
 
     // preprocess the intent, including filter and special execution.
     match process(&mut intent).await {

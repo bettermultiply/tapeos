@@ -20,7 +20,7 @@ const SCORE_METHOD: &str = "usage";
 
 // the distributer will distribute the sub-intents from disassembler to the corresponding resource or subsystem.
 pub async fn router(i: &mut Intent) {
-    info!("router: Start to router intent");
+    // info!("router: Start to router intent");
     if i.get_emergency() {
         for s_intent in i.iter_sub_intent() {
             route_all(s_intent).await.unwrap();
@@ -77,7 +77,7 @@ async fn select_resource(s_intent: &SubIntent) -> &str {
         }
     }
             // error!("{best_resource} add one");
-    error!("{best_resource}, score {}", u64::MAX - best_score);
+    // error!("{best_resource}, score {}", u64::MAX - best_score);
     change_resource_dealing(best_resource, true).await;
     add_resource_total_busy(best_resource, get_resource_average_busy(best_resource).await).await;
     best_resource

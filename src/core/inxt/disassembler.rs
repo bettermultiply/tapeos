@@ -98,7 +98,7 @@ fn format_check(rough_intent: &str) -> bool {
     }
     let re = Regex::new(r"(:*/+*;)+").unwrap();
     let result = re.is_match(rough_intent);
-    info!("check result is {} {}", result, rough_intent);
+    // info!("check result is {} {}", result, rough_intent);
     result
 }
 

@@ -85,7 +85,7 @@ async fn spec_exec(intent: &mut Intent) -> BoxResult<()> {
         }
         match rule_judge(intent, rule).await {
             Err(e) => {
-                info!("special execution: {}", rule.get_name());
+                // info!("special execution: {}", rule.get_name());
                 return Err(e);   
             },
             Ok(()) => (),

@@ -280,7 +280,6 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> BoxResult<()>
 }
 
 pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> BoxResult<()> {
-    // println!("{resource_name}");
     let r_m = INTERNET_RESOURCES.lock().await;
     let r = r_m.get(&resource_name);
     if r.is_some() {

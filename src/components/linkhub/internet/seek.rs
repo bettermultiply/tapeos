@@ -275,6 +275,7 @@ pub async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>>
     let m_json = serde_json::to_string(&m)?;
     get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
     intent.complete();
+    println!("1");
     Ok(intent.get_id())
 }
 
@@ -295,8 +296,10 @@ async fn find_resource_by_addr(addr: &SocketAddr) -> Option<String> {
 async fn mark_complete(sub_id: i64) ->BoxResult<()> {
     // let mut id = 0;
     // let mut name: &str = "";
-    for i in INTENT_QUEUE.lock().await.iter_mut() {
-        let mut c = false;
+    let mut i_q = INTENT_QUEUE.lock().await;
+    let mut c = false;
+    for i in i_q.iter_mut() {
+    // for i in INTENT_QUEUE.lock().await.iter_mut() {
         for ii in i.iter_sub_intent() {
             if ii.get_id() != sub_id || ii.is_complete() { continue; }
             ii.complete();
@@ -305,6 +308,12 @@ async fn mark_complete(sub_id: i64) ->BoxResult<()> {
         }
 
         if c {
+            if i.is_complete() {
+                complete_intent(i).await.unwrap();
+                let id = i.get_id();
+                i_q.retain(|i| i.get_id() != id);
+                info!("Handler Over");
+            }
             // we can not sub here for we should sub by status flash
             // change_resource_dealing(name, false).await;
             break;

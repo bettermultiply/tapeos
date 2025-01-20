@@ -40,11 +40,11 @@ pub async fn handler(mut intent: Intent) -> JudgeResult {
     // schedule_intent(&intent);
 
     router(&mut intent).await;
-    let id = intent.get_id();
+    // let id = intent.get_id();
     INTENT_QUEUE.lock().await.push(intent);
     
 
-    monitor(id).await;
+    // monitor(id).await;
 
     // complete should report completion to tape monitor.
     // intent.complete();

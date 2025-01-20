@@ -60,10 +60,11 @@ resources: 1. MySQL/MySQL can store, organize, and manage data in structured tab
  
 Example Output:
 store name 'BM':MySQL/MongoDB/Google Drive;
-store birthday '12.01':MongoDB/Google Drive/MySQL
+store birthday '12.01':MongoDB/Google Drive/MySQL;
 
 Example Wrong Ouput:
-store name 'BM': MySQL/MongoDB/Google Drive;
+store name 'BM': MySQL/MongoDB/Google Drive;    reason: wrong name, our resource is 'MySQL' not ' MySQL'
+store name 'BM': MySQL/MongoDB/Google Drive     reason: lack of ';'
 ";
 
 //     let s_prompt = 

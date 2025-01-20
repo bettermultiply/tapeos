@@ -1,6 +1,6 @@
 // in this file, we will implement the disassembler.
 
-use log::{info, warn};
+use log::{info, warn, error};
 use regex::Regex;
 use crate::{
     base::intent::{Intent, SubIntent}
@@ -19,19 +19,20 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
                 last_outcome.as_str()
             ).await;
             
-        info!("disassembler rough_intent: {}", rough_intent);
+            info!("disassembler rough_intent: {}", rough_intent);
             
         last_outcome = rough_intent.clone();
-        let to_parse_intent = rough_intent;
+        let to_parse_intent = rough_intent.clone();
         match format_check(&to_parse_intent) {
             true => {
                 sub_intents = parse_rough_intent(to_parse_intent);
                 break;
             }
             false => {
+                error!("disassembler rough_intent: {}", rough_intent);
                 tries_count -= 1;
                 if tries_count == 0 {
-                    warn!("disassembler: sub_intents error");
+                    error!("disassembler: sub_intents error");
                     return None;
                 }
             }
@@ -60,10 +61,12 @@ resources: 1. MySQL/MySQL can store, organize, and manage data in structured tab
  
 Example Output:
 store name 'BM':MySQL/MongoDB/Google Drive;
-store birthday '12.01':MongoDB/Google Drive/MySQL
+store birthday '12.01':MongoDB/Google Drive/MySQL;
 
 Example Wrong Ouput:
-store name 'BM': MySQL/MongoDB/Google Drive;
+store name 'BM': MySQL/MongoDB/Google Drive;    reason: wrong name, our resource is 'MySQL' not ' MySQL'
+store name 'BM': MySQL/MongoDB/Google Drive     reason: lack of ';'
+
 ";
 
 //     let s_prompt = 

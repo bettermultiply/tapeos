@@ -4,10 +4,7 @@ use std::{
 };
 use log::{info, error, warn};
 use tokio::{
-    net::UdpSocket,
-    time::{Duration, interval},
-    sync::Mutex,
-    sync::mpsc::{self, Receiver, Sender}
+    net::UdpSocket, sync::{mpsc::{self, Receiver, Sender}, Mutex, OnceCell}, time::{interval, Duration}
 };
 use lazy_static::lazy_static; 
 use crate::{
@@ -34,6 +31,7 @@ macro_rules! get_udp {
 pub const TAPE_ADDRESS: &str = "127.0.0.1:8888";
 lazy_static! {
     pub static ref SOCKET: Mutex<Option<UdpSocket>> = Mutex::new(None);
+    pub static ref VAL: OnceCell<Instant> = OnceCell::const_new();
 }
 
 pub async fn seek() -> BoxResult<()> {
@@ -83,9 +81,9 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
     
     find_register(SOCKET.lock().await.as_ref().unwrap(), true, v_position).await; 
     // every 60 seconds, check if the socket addresses are still valid
-    let mut heartbeat_inter = interval(Duration::from_secs(200));
-    let mut reroute_inter = interval(Duration::from_secs(60));
-    let mut status_inter = interval(Duration::from_secs(10));
+    let mut heartbeat_inter = interval(Duration::from_secs(2000));
+    let mut reroute_inter = interval(Duration::from_secs(6000));
+    let mut status_inter = interval(Duration::from_secs(1000));
     
     loop {
         tokio::select! {
@@ -142,12 +140,20 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
     }    
 }
 
-
 async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
     // parse the message into available format
     let m: Message = parse_message(&message);
     match m.get_type() {
         MessageType::Intent => {
+            VAL.get_or_init(|| async {Instant::now()}).await;
+            // std::sync::Once::new().call_once(|| {
+                // *VAL.lock().await = Instant::now();
+            // }); 
+            // let mut t = TIME.lock().await;
+            // if t.is_none() {
+            //     *t = Some(Instant::now());
+            // }
+            // let _ = t;
             let r = find_resource_by_addr(&src).await;
             
             // if resource haven't register, reject it.
@@ -275,6 +281,9 @@ pub async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>>
     let m_json = serde_json::to_string(&m)?;
     get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
     intent.complete();
+    println!("now {}", VAL.get().unwrap().elapsed().as_secs_f32());
+    // *TIMES.lock().await += 1;
+    // println!("now execute {}, {} times", TIME.lock().await.unwrap().elapsed().as_secs_f32(), TIMES.lock().await);
     Ok(intent.get_id())
 }
 

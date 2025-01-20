@@ -168,7 +168,8 @@ async fn message_handler(
                         return Ok(());
                     }
                     let intent = queue.remove(index.unwrap());
-                    info!("OKOK Intent {} finished", intent.get_description());
+                    let _ = queue;
+                    println!("OKOK Intent {} finished", intent.get_description());
                 },
                 "Duplicate" => {
                     

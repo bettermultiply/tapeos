@@ -253,15 +253,7 @@ async fn store_resource(resource: InternetResource) -> Option<()> {
     let name = resource.get_name();
     if i_rs.get(name).is_some() {return None;}
     
-    // info!("store internet resource: {}", name);
     i_rs.insert(name.to_string(), Arc::new(Mutex::new(resource)));
-    // error!("now we have resource: {}", i_rs.len());
-    // if i_rs.len() == 10000 {
-    //     let now = NOW.lock().await.elapsed().as_secs_f64();
-    //     sleep(Duration::from_secs(2));
-    //     println!("{}", now);
-    //     exit(0);
-    // }
     Some(())
 }
 

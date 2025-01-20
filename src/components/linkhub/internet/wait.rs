@@ -39,44 +39,35 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
     if port == 0 {
         port = PORT;
     }
-    // TODO:
-    // 1. 发现 外部seeker 的广播，并建立连接
-    // 2. 监听来自 外部seeker 的请求和消息
-    // 3. 接发 内部seeker 的信息
+
     let (
         socket, 
         input_socket,
         m_json
     ) = init(name.clone(), desc, port).await?;
 
-    let mut tape_i: Option<SocketAddr> = None;
-    let mut tape_o: Option<SocketAddr> = None;
+    let tape_i: Arc<Mutex<Option<SocketAddr>>> = Arc::new(Mutex::new(None));
+    let tape_o: Arc<Mutex<Option<SocketAddr>>> = Arc::new(Mutex::new(None));
     let socket = Arc::new(socket);
     let status = Arc::new(Mutex::new(Status::new(true, (0.0, 0.0, 0.0), time::Duration::from_secs(0))));
-    let usage_time: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
-    let usage_times: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
-    let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000);
     let v_position: ((f32, f32), (f32, f32), (f32, f32)) = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0));
     find_register(&socket, false, v_position).await; 
     
     let mut register = interval(time::Duration::from_secs(10));
 
-    let mut buf = [0; 1024];
     let mut input_buf = [0; 1024];
     loop {
+        let mut buf = [0; 1024];
         // waiting for intent
         tokio::select! {
             _ = register.tick(), if TAPE.lock().await.is_none() => {
-                // TODO: send here should be autofind
                 find_register(&socket, false, v_position).await; 
-                // send_register(&socket, &tape_i, &m_json).await;
-                // ITAPE.lock().await.lock().await.set_address(tape_i.clone());
             },
             Ok((amt, _))  = input_socket.recv_from(&mut input_buf) => {
                 match str::from_utf8(&input_buf[0..amt]) {
                     Ok(m_body) => {
-                        if tape_i.is_none() {
+                        if tape_i.lock().await.is_none() {
                             warn!("send to seeker please");
                         }
 
@@ -85,7 +76,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                         
                         // we only send plain text intent so that the bandwidth cost will reduce
                         let m = Message::new(MessageType::Intent, m_body.to_string(), Some(i.get_id()));
-                        match send_message(&socket, &tape_i.unwrap(), &m).await {
+                        match send_message(&socket, &tape_i.lock().await.unwrap(), &m).await {
                             Ok(_) => {
                                 TAPE_INTENT_QUEUEUE.lock().await.push(i);
                             },
@@ -98,122 +89,135 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                 } 
             }
             Ok((amt, src)) = socket.recv_from(&mut buf) => {
-                if src == server_addr {
-                    // info!("received");
-                    let data = str::from_utf8(&buf[..amt])?;
-                    let tape: RegisterServer = serde_json::from_str(&data)?;
-                    tape_i = Some(tape.get_iaddr().clone());
-                    tape_o = Some(tape.get_oaddr().clone());
-                    send_register(&socket, &tape_i.unwrap(), &m_json).await;
-                    ITAPE.lock().await.lock().await.set_address(tape_i.unwrap().clone());
-                    continue;
-                }
-                if tape_o.is_none() {
-                    warn!("haven't regiterd");
-                    continue;
-                }
-                if src != tape_o.expect("error") { 
-                    warn!("source error");
-                    continue; 
-                } // waiter only accept message from Tape
-                
-                let m: Message = parse_message(&buf[..amt]);
-                match m.get_type() {
-                    MessageType::Status => {
-                        status_report(&socket, &tape_i.unwrap(), Arc::clone(&status)).await?
-                    }
-                    MessageType::Heartbeat 
-                    => heart_beat_report(&socket, &tape_o.unwrap()).await?,
-                    MessageType::Finish => {
-                        *TAPE.lock().await = ResourceType::None;
-                        tape_i = None;
-                        tape_o = None;
-                        println!("{name}: {};{}", usage_times.lock().await, usage_time.lock().await);
-                        return Ok(());
-                    }
-                    MessageType::Response => {
-                        match m.get_body().as_ref() {
-                            "Registerd" => {
-                                *TAPE.lock().await = ResourceType::Internet;
-                                // info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
-                            },
-                            "Intent Duplicate" => {
-
-                            },
-                            "Intent Received" => {
-                            
-                            },
-                            "Finish Received" => {
-                                info!("Finish Received get");
-                                // intent finish.
-                            },
-                            "Finish" => {
-                                let id = m.get_id().unwrap();
-                                let mut queue = TAPE_INTENT_QUEUEUE.lock().await; 
-                                let index = queue.iter().position(|i| i.get_id() == id);
-                                if index.is_none() {
-                                    warn!("not intent here");
-                                    continue;
-                                }
-                                let intent = queue.remove(index.unwrap());
-                                info!("OKOK Intent {} finished", intent.get_description());
-                            },
-                            "Duplicate" => {
-                            
-                            },
-                            "Register First" => {
-                                // knowning the connect broken.
-                                *TAPE.lock().await = ResourceType::None;
-                                tape_i = None;
-                                tape_o = None;
-                            },
-                            _ => {
-                                warn!("Do not support such response now. {}", m.get_body());
-                            },
-                        }
-                    },
-                    MessageType::Intent 
-                    => {
-                        let c_socket = Arc::clone(&socket);
-                        let c_status = Arc::clone(&status);
-                        let c_time = Arc::clone(&usage_time);
-                        let c_times = Arc::clone(&usage_times);
-                        let c_tape_i = tape_i.clone();
-                        let c_m = m.get_body().clone();
-                        let m_id = m.get_id().clone();
-                        tokio::spawn(async move {
-
-                            if END {
-                                let x = execute(&c_m, c_status).await.unwrap();
-                                *c_time.lock().await += x;
-                                *c_times.lock().await += 1;
-                            } else {
-                                let i: Intent = Intent::new(c_m.clone(), IntentSource::Tape, IntentType::Intent, Some("TAPE".to_string()));
-                                handler(i).await;
-                            }
-                            let m = Message::new(MessageType::Response, "Execute Over".to_string(), m_id);
-                            // let addr = WAIT_EXEC_ADDR.lock();
-                            // let s = UdpSocket::bind(addr.await.clone()).await.unwrap();
-                            loop {
-                                match send_message(&c_socket, &c_tape_i.unwrap(), &m).await {
-                                    Ok(_) => {
-                                        // let _ = s;
-                                        // let _ = addr;
-                                        break;
-                                    },
-                                    Err(_e) => (),
-                                }
-                            }
-                        }); 
-                    },
-                    _ => { warn!("do not support such intent: {} port: {}", m.get_body(), port); }
-                }
-            },
+                let c_tape_i = Arc::clone(&tape_i);
+                let c_tape_o = Arc::clone(&tape_o);
+                let c_socket = Arc::clone(&socket);
+                let c_status = Arc::clone(&status);
+                let c_m_json = m_json.clone();
+                tokio::spawn(async move{
+                    let _ = message_handler(src, amt, c_tape_i, c_tape_o, &buf, c_socket, c_m_json, c_status).await;
+                });
+            }
         }
     }
-    
 }
 
+async fn message_handler(
+    src: SocketAddr, 
+    amt: usize, 
+    tape_i: Arc<Mutex<Option<SocketAddr>>>, 
+    tape_o: Arc<Mutex<Option<SocketAddr>>>,
+    buf: &[u8],
+    socket: Arc<UdpSocket>,
+    m_json: String,
+    status: Arc<Mutex<Status>>,
+) -> BoxResult<()> {
+    let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8000);
+    if src == server_addr {
+        let data = str::from_utf8(&buf[..amt]).unwrap();
+        let tape: RegisterServer = serde_json::from_str(data)?;
+        *tape_i.lock().await = Some(tape.get_iaddr().clone());
+        *tape_o.lock().await = Some(tape.get_oaddr().clone());
+        send_register(&socket, &tape.get_iaddr(), &m_json).await;
+        ITAPE.lock().await.lock().await.set_address(tape.get_iaddr().clone());
+        return Ok(());
+    }
+    if tape_o.lock().await.is_none() {
+        warn!("haven't regiterd");
+        return Ok(());
+    }
+    if src != tape_o.lock().await.expect("error") { 
+        warn!("source error");
+        return Ok(());
+    } // waiter only accept message from Tape
+
+    let m: Message = parse_message(&buf[..amt]);
+    match m.get_type() {
+        MessageType::Status => {
+            status_report(&socket, &tape_i.lock().await.unwrap(), Arc::clone(&status)).await?
+        }
+        MessageType::Heartbeat 
+        => heart_beat_report(&socket, &tape_o.lock().await.unwrap()).await?,
+        MessageType::Finish => {
+            *TAPE.lock().await = ResourceType::None;
+            *tape_i.lock().await = None;
+            *tape_o.lock().await = None;
+        }
+        MessageType::Response => {
+            match m.get_body().as_ref() {
+                "Registerd" => {
+                    *TAPE.lock().await = ResourceType::Internet;
+                    // info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
+                },
+                "Intent Duplicate" => {
+                    
+                },
+                "Intent Received" => {
+                    
+                },
+                "Finish Received" => {
+                    info!("Finish Received get");
+                    // intent finish.
+                },
+                "Finish" => {
+                    let id = m.get_id().unwrap();
+                    let mut queue = TAPE_INTENT_QUEUEUE.lock().await; 
+                    let index = queue.iter().position(|i| i.get_id() == id);
+                    if index.is_none() {
+                        warn!("not intent here");
+                        return Ok(());
+                    }
+                    let intent = queue.remove(index.unwrap());
+                    info!("OKOK Intent {} finished", intent.get_description());
+                },
+                "Duplicate" => {
+                    
+                },
+                "Register First" => {
+                    // knowning the connect broken.
+                    *TAPE.lock().await = ResourceType::None;
+                    *tape_i.lock().await = None;
+                    *tape_o.lock().await = None;
+                },
+                _ => {
+                    warn!("Do not support such response now. {}", m.get_body());
+                },
+            }
+        },
+        MessageType::Intent 
+        => {
+            let c_socket = Arc::clone(&socket);
+            let c_status = Arc::clone(&status);
+            let c_tape_i = tape_i.clone();
+            let c_m = m.get_body().clone();
+            let m_id = m.get_id().clone();
+            tokio::spawn(async move {
+            
+                if END {
+                    let _ = execute(&c_m, c_status).await.unwrap();
+                } else {
+                    let i: Intent = Intent::new(c_m.clone(), IntentSource::Tape, IntentType::Intent, Some("TAPE".to_string()));
+                    handler(i).await;
+                }
+                let m = Message::new(MessageType::Response, "Execute Over".to_string(), m_id);
+                // let addr = WAIT_EXEC_ADDR.lock();
+                // let s = UdpSocket::bind(addr.await.clone()).await.unwrap();
+                loop {
+                    match send_message(&c_socket, &c_tape_i.lock().await.unwrap(), &m).await {
+                        Ok(_) => {
+                            // let _ = s;
+                            // let _ = addr;
+                            break;
+                        },
+                        Err(_e) => (),
+                    }
+                }
+            }); 
+        },
+        _ => { warn!("do not support such intent: {} ", m.get_body()); }
+    }
+    Ok(())
+}
 
 async fn init(name: String, desc: String, port: u16) -> BoxResult<(UdpSocket, UdpSocket, String)> {
     // let tape_o = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8889);

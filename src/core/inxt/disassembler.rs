@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub async fn disassembler(intent: &mut Intent) -> Option<()> {
-    info!("disassembler: Start to disassemble intent");
+    // info!("disassembler: Start to disassemble intent");
     let sub_intents: Vec<SubIntent>;
     let mut tries_count = 3;
     let mut last_outcome = "".to_string();
@@ -20,7 +20,7 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
             ).await;
             
         info!("disassembler rough_intent: {}", rough_intent);
-        
+            
         last_outcome = rough_intent.clone();
         let to_parse_intent = rough_intent;
         match format_check(&to_parse_intent) {
@@ -93,11 +93,12 @@ Available Resources: {}",
 
 fn format_check(rough_intent: &str) -> bool {
     if rough_intent == "None" {
+        warn!("None Intent");
         return false;
     }
     let re = Regex::new(r"(:*/+*;)+").unwrap();
     let result = re.is_match(rough_intent);
-    info!("check result is {}", result);
+    info!("check result is {} {}", result, rough_intent);
     result
 }
 

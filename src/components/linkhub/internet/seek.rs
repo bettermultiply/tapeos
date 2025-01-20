@@ -274,7 +274,7 @@ pub async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>>
     intent.complete();
     *times.lock().await += 1;   
     error!("times: {}", times.lock().await);
-    if times.lock().await.eq(&10) {
+    if times.lock().await.eq(&400) {
         error!("all inetnt finish!!!!!!");
         for r in INTERNET_RESOURCES.lock().await.values() {
             let _ = send_message_internet(r.lock().await, "", MessageType::Finish, None).await;

@@ -44,7 +44,7 @@ async fn main() {
         let _ = seek().await;
     });
     sleep(Duration::from_secs(1));
-    sleep(Duration::from_secs(1000));
+    sleep(Duration::from_secs(10000));
     
     // intent::handler(intent).await;
     error!("main: Try ended");

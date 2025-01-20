@@ -79,7 +79,7 @@ async fn spec_exec(intent: &mut Intent) -> BoxResult<()> {
 
     let special_id = STATIC_RULES["reject"].get_id();
     for rule in STATIC_RULES.values().into_iter() {
-        if rule.get_id() < special_id {
+            if rule.get_id() < special_id {
             // if rule.get_id() < special_id || i_pair[1] != rule.get_name() {
             continue;
         }
@@ -105,9 +105,9 @@ async fn essential_judge(intent: &mut Intent) -> BoxResult<()> {
     let special_id = STATIC_RULES["reject"].get_id();
     for rule in STATIC_RULES.values() {
         if rule.get_id() >= special_id {
-                // info!("judge np, rule id: {}",rule.get_id() );
                 continue;
         }
+        // info!("judge, rule id: {}",rule.get_name() );
         match rule_judge(intent, rule).await {
             Ok(()) => {
                 // info!("judge Pass")
@@ -158,8 +158,19 @@ async fn rule_judge(intent: &mut Intent, rule: &Rule) -> BoxResult<()> {
             }
         },
         RuleDetail::Prompt(rule_description) => {
-            let prompt_content = format!("the rule description is: {}\n the intent description is: {}.", rule_description, intent.get_description());
-            match prompt("If the intent conform to the rule, return true, otherwise return false. do not ouput dot or any other things",&prompt_content).await.as_str() {
+            let u_prompt = format!(
+                "the rule description is: {}\n the intent description is: {}.", 
+                rule_description, intent.get_description()
+            );
+            let s_prompt = format!(
+                "User will give you some Intent, and you need to judge whether it conform to the sentences describe below
+                '{}'
+
+                if it conform, return true, otherwise return false, do not ouput dot or any other things.
+                You need to be tolerant about some general intent.",
+                rule_description
+            );
+            match prompt(&s_prompt,&u_prompt).await.as_str() {
                 "true" => return Err(Box::new(JudgeError::new("We do not accept such intent now."))),
                 _ => (),
             };

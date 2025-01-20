@@ -273,8 +273,8 @@ pub async fn complete_intent(intent: &mut Intent) -> Result<i64, Box<dyn Error>>
     get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
     intent.complete();
     *times.lock().await += 1;   
-    println!("times: {}", times.lock().await);
-    if times.lock().await.eq(&400) {
+    error!("times: {}", times.lock().await);
+    if times.lock().await.eq(&10) {
         error!("all inetnt finish!!!!!!");
         for r in INTERNET_RESOURCES.lock().await.values() {
             let _ = send_message_internet(r.lock().await, "", MessageType::Finish, None).await;
@@ -302,9 +302,9 @@ async fn mark_complete(sub_id: i64) ->BoxResult<()> {
     // let mut id = 0;
     // let mut name: &str = "";
     let mut i_q = INTENT_QUEUE.lock().await;
+    let mut c = false;
     for i in i_q.iter_mut() {
     // for i in INTENT_QUEUE.lock().await.iter_mut() {
-        let mut c = false;
         for ii in i.iter_sub_intent() {
             if ii.get_id() != sub_id || ii.is_complete() { continue; }
             ii.complete();
@@ -324,6 +324,7 @@ async fn mark_complete(sub_id: i64) ->BoxResult<()> {
             break;
         }
     }
+
     // INTENT_QUEUE.lock().await.retain(|i| i.get_id() != id);
     Ok(())
 }

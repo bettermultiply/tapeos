@@ -216,7 +216,6 @@ async fn message_handler(
                     let x = execute(&c_m, c_status).await.unwrap();
                     *c_time.lock().await += x;
                     *c_times.lock().await += 1;
-                    // println!("{};{}", c_time.lock().await, c_times.lock().await);
                 } else {
                     let i: Intent = Intent::new(c_m.clone(), IntentSource::Tape, IntentType::Intent, Some("TAPE".to_string()));
                     handler(i).await;
@@ -234,7 +233,6 @@ async fn message_handler(
                         Err(_e) => (),
                     }
                 }
-                println!("send");
             }); 
         },
         _ => { warn!("do not support such intent: {} ", m.get_body()); }

@@ -47,9 +47,7 @@ use super::rule::RULES;
 // }
 
 pub static RISK_PROMPT: &str = "
-    check if the intent below will cause risk.
-    if yes return true, else return false.
-    intent: ";
+    This intent will do harm to systems or human.";
 
 pub static PRIVILEGE_PROMPT: &str = "
     check if the intent below have privilege to execute.

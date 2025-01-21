@@ -83,6 +83,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     Ok(m_body) => {
                         if tape_i.lock().await.is_none() {
                             warn!("send to seeker please");
+                            continue;
                         }
 
                         let i = Intent::new(m_body.to_string(), IntentSource::Input, IntentType::Intent, None);

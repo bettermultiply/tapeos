@@ -1,8 +1,6 @@
 use log::info;
 use tapeos::{
-    config::{INTENT_INPUT_DESCRIPTION, MYSQL_DESCRIPTION}, 
-    components::linkhub::internet::{seek::seek, wait::wait}, 
-    tools::{idgen::init_id_generator, rserver::tape_server},
+    components::linkhub::internet::{seek::seek, wait::wait}, resourcepool::{DESCRIPTION_VEC, INTENT_INPUT_DESCRIPTION, MYSQL_DESCRIPTION, NAME_VEC}, tools::{idgen::init_id_generator, rserver::tape_server}
 };
 use std::{thread::sleep, time::Duration,};
 
@@ -16,7 +14,6 @@ async fn main() {
         tape_server();
     });
 
-    // loop_resource(100, "MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 9001);
     tokio::spawn(async {
         let _ = wait("MySQL".to_string(), MYSQL_DESCRIPTION.to_string(), 8001).await;
     });
@@ -45,6 +42,18 @@ fn loop_resource(times: u16, name: String, desc: String, start_port: u16) {
         tokio::spawn(async move {
             let s = format!("{}{}", n, i);
             let _ = wait(s, d, start_port+i).await;
+        });
+    }
+}
+
+#[allow(unused)]
+fn start_all_resource() {
+    for i in 0..NAME_VEC.len() {
+        let s = NAME_VEC[i].to_string();
+        let d = DESCRIPTION_VEC[i].to_string();
+        let port_alias = i as u16;
+        tokio::spawn( async move{
+            let _ = wait(s, d, 9000+port_alias).await;
         });
     }
 }

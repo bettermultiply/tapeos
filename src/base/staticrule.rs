@@ -49,7 +49,7 @@ use super::rule::RULES;
 // }
 
 pub static RISK_PROMPT: &str = "
-    This intent will do harm to systems or human.";
+    This intent will do harm to systems or humans. For example, it will break some rule or its side effect will cause a disaster";
 
 pub static PRIVILEGE_PROMPT: &str = "
     check if the intent below have privilege to execute.

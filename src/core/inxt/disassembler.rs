@@ -18,7 +18,10 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
                 intent.get_description(), 
                 last_outcome.as_str()
             ).await;
-            
+        if rough_intent == "None" {
+            warn!("no resource can solve {}", intent.get_description());
+            return None;
+        }
         info!("disassembler rough_intent: {}", rough_intent);
             
         last_outcome = rough_intent.clone();
@@ -49,22 +52,35 @@ async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
     let s_prompt = 
     "
 The user will provide description of Intent, last outcome(which is wrong or in error format) and information about all available resources, Resources will be given in format: `type_name/description/status`.
-And your work is to Disassemble the Intent into sub-intents based on available resources, so that they can be solve by different resources parallel.
+And your work is to Disassemble the Intent into sub-intents based on available resources, so that they can be solve by different resources parallel.But you must know that not all resource must be used. So in the extream case, if you judge that no resource can solve this intent, just return 'None'(without andything others);
 Outcome should be given in format: sub-intent_1:available_device_1/available_device_2/.../available_device_n;sub-intent_2:available_device_1/available_device_2/.../available_device_m;...;sub-intent_n:available_device_1/available_device_2/.../available_device_k;
 You should not add any blank except the name of resource have one, which means you should not change the resources' name as well.
 
-Example Input:
+Example Input1:
 Intent: store my name 'BM' and my birthday '12.01'
 last outcome: 
 resources: 1. MySQL/MySQL can store, organize, and manage data in structured tables./avaiable; 2. MongoDB/MongoDB is a NoSQL database that stores data in flexible, JSON-like documents instead of tables./avaiable; 3. Google Drive/Google Drive is a cloud-based storage service that allows you to store, share, and access files from anywhere./avaiavle;
  
-Example Output:
+Example Output1:
 store name 'BM':MySQL/MongoDB/Google Drive;
 store birthday '12.01':MongoDB/Google Drive/MySQL;
 
-Example Wrong Ouput:
+Example Wrong Ouput1:
 store name 'BM': MySQL/MongoDB/Google Drive;    reason: wrong name, our resource is 'MySQL' not ' MySQL'
 store name 'BM': MySQL/MongoDB/Google Drive     reason: lack of ';'
+
+Example Input1:
+Intent: Power on my computer
+last outcome: 
+resources: 1. MySQL/MySQL can store, organize, and manage data in structured tables./avaiable; 2. MongoDB/MongoDB is a NoSQL database that stores data in flexible, JSON-like documents instead of tables./avaiable; 3. Google Drive/Google Drive is a cloud-based storage service that allows you to store, share, and access files from anywhere./avaiavle;
+ 
+Example Output2:
+None
+
+Example Wrong Ouput2:
+store name 'BM': MySQL/MongoDB/Google Drive;    reason: no resourc can do that
+
+None;                                           reason: lack of use some things other than None
 ";
 
 //     let s_prompt = 

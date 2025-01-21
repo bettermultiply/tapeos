@@ -205,12 +205,15 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
         MessageType::Reject => {
             let id = m.get_id().unwrap();
             for i in INTENT_QUEUE.lock().await.iter_mut() {
+                let i_r = i.get_resource().unwrap().to_string();
+                let i_d = i.get_description().to_string();
                 for ii in i.iter_sub_intent() {
                     if ii.get_id() != id { continue; }
                     match reroute(ii).await {
                         Ok(_) => (),
                         Err(_) => {
-                            // TODO
+                            reject_intent(i_r, &i_d).await?;
+                            return Ok(());
                         },
                     }
                 }

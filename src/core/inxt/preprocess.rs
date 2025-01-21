@@ -111,7 +111,12 @@ async fn essential_judge(intent: &mut Intent) -> BoxResult<()> {
             Ok(()) => {
                 // info!("judge Pass")
             },
-            Err(e) => return Err(e),
+            Err(_) => {
+                return Err(Box::new(JudgeError::new(&format!(
+                    "We do not accept such intent for {} reason",
+                    rule.get_name()
+                ))));
+            },
         }
     }
 
@@ -125,7 +130,11 @@ async fn user_judge(intent: &mut Intent) -> BoxResult<()> {
     for rule in RULES.lock().await.iter_rules() {
         match rule_judge(intent, rule).await {
             Ok(_) => (),
-            Err(e) => return Err(e),
+            Err(_) => {
+                return Err(Box::new(JudgeError::new(
+                    "We do not accept such intent for user rule reason"
+                )));
+            },
         }
     }
 
@@ -170,7 +179,7 @@ async fn rule_judge(intent: &mut Intent, rule: &Rule) -> BoxResult<()> {
                 rule_description
             );
             match prompt(&s_prompt,&u_prompt).await.as_str() {
-                "true" => return Err(Box::new(JudgeError::new("We do not accept such intent now."))),
+                "true" => return Err(Box::new(JudgeError::new("We do not accept such intent for reason of risk, privilige, rule limit and so on."))),
                 _ => (),
             };
         },

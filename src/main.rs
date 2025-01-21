@@ -1,6 +1,6 @@
 use log::info;
 use tapeos::{
-    config::{INTENT_INPUT_DESCRIPTION, MY_SQL_DESCRIPTION}, 
+    config::{INTENT_INPUT_DESCRIPTION, MYSQL_DESCRIPTION}, 
     components::linkhub::internet::{seek::seek, wait::wait}, 
     tools::{idgen::init_id_generator, rserver::tape_server},
 };
@@ -18,7 +18,7 @@ async fn main() {
 
     // loop_resource(100, "MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 9001);
     tokio::spawn(async {
-        let _ = wait("MySQL".to_string(), MY_SQL_DESCRIPTION.to_string(), 8001).await;
+        let _ = wait("MySQL".to_string(), MYSQL_DESCRIPTION.to_string(), 8001).await;
     });
     // tokio::spawn(async {
     //     let _ = wait("MongoDB".to_string(), MONGO_DB_DESCRIPTION.to_string(), 8002).await;

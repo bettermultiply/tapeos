@@ -20,7 +20,7 @@ use crate::{
             resource::InternetResource, 
             seek::TAPE_ADDRESS
         }, 
-        waiter::{HEART, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
+        waiter::{ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
     }, 
     core::inxt::intent::{execute, handler}
 };
@@ -69,14 +69,14 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                 find_register(&socket, false, v_position).await; 
             },
             _ = check_register.tick(), if !TAPE.lock().await.is_none() => {
-                if *HEART.lock().await {
-                    *HEART.lock().await = false;
-                    continue;
-                }
-                warn!("no heart beat, disconnect");
-                *TAPE.lock().await = ResourceType::None;
-                *tape_i.lock().await = None;
-                *tape_o.lock().await = None;
+                // if *HEART.lock().await {
+                //     *HEART.lock().await = false;
+                //     continue;
+                // }
+                // warn!("no heart beat, disconnect");
+                // *TAPE.lock().await = ResourceType::None;
+                // *tape_i.lock().await = None;
+                // *tape_o.lock().await = None;
             },
             Ok((amt, _))  = input_socket.recv_from(&mut input_buf) => {
                 match str::from_utf8(&input_buf[0..amt]) {
@@ -164,7 +164,7 @@ async fn message_handler(
         MessageType::Heartbeat 
         => {
             heart_beat_report(&socket, &tape_o.lock().await.unwrap()).await?;
-            *HEART.lock().await = true;
+            // *HEART.lock().await = true;
         },
         MessageType::Finish => {
             *TAPE.lock().await = ResourceType::None;

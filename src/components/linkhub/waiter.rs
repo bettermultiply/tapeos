@@ -43,7 +43,7 @@ lazy_static! {
     pub static ref ITAPE: Arc<Mutex<InternetResource>> = Arc::new(Mutex::new(InternetResource::new("Tape".to_string(), "".to_string(), SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888), Status::new(true, (1.0, 1.0, 1.0), time::Duration::from_secs(0)))));
     pub static ref WAIT_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref WAIT_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
-    pub static ref HEART: Mutex<bool> = Mutex::new(true);
+    // pub static ref HEART: Mutex<bool> = Mutex::new(true);
 
     pub static ref WAIT_EXEC_ADDR: Mutex<String> = Mutex::new("127.0.0.1:8000".to_string());
     pub static ref TAPE_INTENT_QUEUEUE: Queue<Intent> = Mutex::new(vec![]);

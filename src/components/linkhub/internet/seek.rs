@@ -1,6 +1,10 @@
 // use std::time;
 use std::{
-    error::Error, net::{IpAddr, Ipv4Addr, SocketAddr}, str, sync::Arc, time::Instant
+    str, 
+    sync::Arc, 
+    error::Error, 
+    time::Instant,
+    net::{IpAddr, Ipv4Addr, SocketAddr}, 
 };
 use log::{info, error, warn};
 use tokio::{
@@ -12,7 +16,10 @@ use tokio::{
 use lazy_static::lazy_static; 
 use crate::{
     base::{
-        errort::BoxResult, intent::{Intent, IntentSource, IntentType}, message::{Message, MessageType}, resource::{Interpreter, RegisterServer, Resource} 
+        errort::BoxResult, 
+        message::{Message, MessageType}, 
+        intent::{Intent, IntentSource, IntentType}, 
+        resource::{Interpreter, RegisterServer, Resource} 
     },
     components::linkhub::{
         internet::resource::InternetResource,
@@ -31,14 +38,16 @@ macro_rules! get_udp {
     }
 }
 
-pub const TAPE_ADDRESS: &str = "127.0.0.1:8888";
+pub const INPUT_TAPE_ADDRESS: &str = "127.0.0.1:8888";
+pub const TAPE_ADDRESS: &str = "127.0.0.1:8889";
+const V_POSITION: ((f32, f32), (f32, f32), (f32, f32)) = ((-100.0, 100.0), (-100.0, 100.0), (-100.0, 100.0));
 lazy_static! {
     pub static ref SOCKET: Mutex<Option<UdpSocket>> = Mutex::new(None);
 }
 
 pub async fn seek() -> BoxResult<()> {
 
-    let (tx, rx) = mpsc::channel::<(String, SocketAddr)>(32);
+    let (tx, rx) = mpsc::channel::<(String, SocketAddr)>(1024);
 
     receive(tx).await;
     response(rx).await
@@ -47,8 +56,9 @@ pub async fn seek() -> BoxResult<()> {
 // act as a listener to receive message
 async fn receive(tx: Sender<(String, SocketAddr)>) {
     tokio::spawn(async move {
-        let socket = UdpSocket::bind(TAPE_ADDRESS).await.expect("Failed to bind to socket");
+        let socket = UdpSocket::bind(INPUT_TAPE_ADDRESS).await.expect("Failed to bind to socket");
         let mut buf = [0; 1024];
+
         loop {
             let (amt, src) = socket.recv_from(&mut buf).await.expect("Failed to receive data");
             let received_data = str::from_utf8(&buf[..amt]).expect("Failed to convert to string");
@@ -61,7 +71,50 @@ async fn receive(tx: Sender<(String, SocketAddr)>) {
     });
 }
 
-pub async fn find_register(socket: &UdpSocket, tape: bool, position: ((f32, f32), (f32, f32), (f32, f32))) {
+async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
+    
+    let socket = UdpSocket::bind(TAPE_ADDRESS).await.expect("Failed to bind to socket");
+    SOCKET.lock().await.replace(socket);
+    
+    find_register(SOCKET.lock().await.as_ref().unwrap(), true, V_POSITION).await; 
+    let mut heartbeat_inter = interval(Duration::from_secs(20));
+    let mut reroute_inter = interval(Duration::from_secs(60));
+    let mut status_inter = interval(Duration::from_secs(10));
+    let _ = heartbeat_inter.tick();
+    let _ = reroute_inter.tick();
+    let _ = status_inter.tick();
+    
+    loop {
+        tokio::select! {
+            Some((message, src)) = rx.recv() => {
+                // handler message from resources.
+                tokio::spawn(async move {
+                    message_handler(&message, src).await.unwrap();
+                });
+            },
+            _ = reroute_inter.tick() => {
+                // try to find sub intent which is out of valid time and reroute them if possible.
+                tokio::spawn(async {
+                    let _ = try_reroute().await;
+                });
+            },
+            _ = heartbeat_inter.tick() => {
+                // Check stored socket addresses are still valid
+                tokio::spawn(async {
+                    send_heartbeat().await.unwrap();
+                });
+            },
+            _ = status_inter.tick() => {
+                tokio::spawn(async move {
+                    query_status().await.unwrap();
+                });
+            },
+        }
+    }    
+}
+
+
+async fn find_register(socket: &UdpSocket, tape: bool, position: ((f32, f32), (f32, f32), (f32, f32))) {
     let v4: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
     let ipv4 = IpAddr::V4(v4);
     let iaddr = SocketAddr::new(ipv4, 8888);
@@ -69,80 +122,36 @@ pub async fn find_register(socket: &UdpSocket, tape: bool, position: ((f32, f32)
     let r = RegisterServer::new(tape, Some(iaddr), Some(oaddr), position);
     let r_json = serde_json::to_string(&r).unwrap();
     let addr = SocketAddr::new(ipv4, 8000);
-    info!("send server register {}", socket.local_addr().unwrap());
     socket.send_to(&r_json.as_bytes(), addr).await.unwrap();
 } 
 
-async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
-    
-    let socket = UdpSocket::bind("127.0.0.1:8889").await.expect("Failed to bind to socket");
-    
-    SOCKET.lock().await.replace(socket);
-    
-    let v_position: ((f32, f32), (f32, f32), (f32, f32)) = ((-100.0, 100.0), (-100.0, 100.0), (-100.0, 100.0));
-    
-    find_register(SOCKET.lock().await.as_ref().unwrap(), true, v_position).await; 
-    // every 60 seconds, check if the socket addresses are still valid
-    let mut heartbeat_inter = interval(Duration::from_secs(20));
-    let mut reroute_inter = interval(Duration::from_secs(60));
-    let mut status_inter = interval(Duration::from_secs(10));
-    
-    loop {
-        tokio::select! {
-            Some((message, src)) = rx.recv() => {
-                    // handler message from resources.
-                // info!("Receive message from: {}", src);
-                tokio::spawn(async move {
-                    message_handler(&message, src).await.unwrap();
-                });
-            },
-            _ = reroute_inter.tick() => {
-                const EXPIRE_D: Duration = Duration::from_secs(60);
-                let mut i_q = INTENT_QUEUE.lock().await;
-                let mut id = 0;
-                for i in i_q.iter_mut() {
-                    let mut c: bool = false;
-                    for s_i in i.iter_sub_intent() {
-                        let live = Instant::now() - s_i.get_routed();
-                        if live > EXPIRE_D {
-                            error!("reroute sub_intent: {} {}", s_i.get_description(), s_i.get_selected_resource().unwrap());
-                            match reroute(s_i).await {
-                                Ok(()) => {},
-                                Err(e) => {
-                                    warn!("{}", e);
-                                    c = true;
-                                },
-                            }
-                        }
-                    }
-                    if c {
-                        reject_intent(i.get_resource().unwrap().to_string(), i.get_description()).await?;
-                        id = i.get_id();
-                    }
+async fn try_reroute() -> BoxResult<()> {
+    const EXPIRE_D: Duration = Duration::from_secs(60);
+    let mut i_q = INTENT_QUEUE.lock().await;
+    let mut id = 0;
+    for i in i_q.iter_mut() {
+        let mut c: bool = false;
+        for s_i in i.iter_sub_intent() {
+            let live = Instant::now() - s_i.get_routed();
+            if live > EXPIRE_D {
+                error!("reroute sub_intent: {} {}", s_i.get_description(), s_i.get_selected_resource().unwrap());
+                match reroute(s_i).await {
+                    Ok(()) => {},
+                    Err(e) => {
+                        warn!("{}", e);
+                        c = true;
+                    },
                 }
-                i_q.retain(|i| i.get_id() != id);
-            },
-            // heartbeat
-            _ = heartbeat_inter.tick() => {
-                // Check stored socket addresses are still valid
-                // info!("sending heart beat to check whether resource alive.");
-                // TODO: may error here.
-                tokio::spawn(async {
-                    send_heartbeat().await.unwrap();
-                });
-            },
-            _ = status_inter.tick() => {
-                info!("query status");
-                tokio::spawn(async move {
-                    query_status().await.unwrap();
-                    // sleep(Duration::from_secs(5));
-                    // check_status().await;
-                });
-            },
+            }
         }
-    }    
+        if c {
+            reject_intent(i.get_resource().unwrap().to_string(), i.get_description()).await?;
+            id = i.get_id();
+        }
+    }
+    i_q.retain(|i| i.get_id() != id);
+    Ok(())
 }
-
 
 async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
     // parse the message into available format
@@ -167,17 +176,10 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             }
             // info!("get intent: {}", intent.get_description());
 
-                match handler(intent).await {
-                    JudgeResult::Reject(e) => reject_intent(r.unwrap(), &e).await.unwrap(),
-                    _ => (),
-                };
-                // info!("handler over");
-                // let s = "Finish".to_string();
-                // let m = Message::new(MessageType::Finish, s, m.get_id());
-                // let m_json = serde_json::to_string(&m).unwrap();
-                // let data: Vec<u8> = m_json.as_bytes().to_vec();
-                // get_udp!().send_to(&data, src).await.unwrap();
-                // info!("har over");
+            match handler(intent).await {
+                JudgeResult::Reject(e) => reject_intent(r.unwrap(), &e).await.unwrap(),
+                _ => (),
+            };
         },
         MessageType::Register => {
             let r = message2resource(m.get_body())?;
@@ -193,7 +195,7 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
         },
         MessageType::Response => {
-            info!("Get Response: {}", m.get_body());
+            // info!("Get Response: {}", m.get_body());
             mark_complete(m.get_id().unwrap_or(0)).await?;
             let mut m_body: String = "Success".to_string();
             if m.get_body() == "Execute Over".to_string() {

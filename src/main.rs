@@ -1,10 +1,10 @@
 use log::info;
 use tapeos::{
-    components::linkhub::internet::{seek::seek, wait::wait}, config::{INTENT_INPUT_DESCRIPTION, MY_SQL_DESCRIPTION}, tools::{idgen::init_id_generator, rserver::tape_server}
+    config::{INTENT_INPUT_DESCRIPTION, MY_SQL_DESCRIPTION}, 
+    components::linkhub::internet::{seek::seek, wait::wait}, 
+    tools::{idgen::init_id_generator, rserver::tape_server},
 };
-use std::{
-    thread::sleep, time::Duration,
-};
+use std::{thread::sleep, time::Duration,};
 
 
 #[tokio::main]
@@ -26,9 +26,9 @@ async fn main() {
     // tokio::spawn(async {
     //     let _ = wait("GooGle Drive".to_string(), GOO_GLE_DRIVE_DESCRIPTION.to_string(), 8003).await;
     // });
-    tokio::spawn(async move {
-        let _ = wait("Intent input".to_string(), INTENT_INPUT_DESCRIPTION.to_string(), 8004).await;
-    });
+    // tokio::spawn(async move {
+    //     let _ = wait("Intent input".to_string(), INTENT_INPUT_DESCRIPTION.to_string(), 8004).await;
+    // });
     tokio::spawn(async move {
         let _ = seek().await;
     });

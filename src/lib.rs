@@ -2,7 +2,7 @@ pub mod core {
     pub mod inxt {
         pub mod preprocess;
         pub mod monitor;
-        pub mod schedule;
+        pub mod verifier;
         pub mod router;
         pub mod disassembler;
         pub mod intent;

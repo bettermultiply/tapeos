@@ -10,11 +10,13 @@ use chrono::{Local, Datelike};
 use std::process::Command;
 
 use crate::{
+    tools::llmq::prompt,
     base::{
         errort::{BoxResult, JudgeError},
         intent::Intent, 
-        rule::{Rule, RuleDetail, RULES, STATIC_RULES}, staticrule
-    }, tools::llmq::prompt,
+        rule::{Rule, RuleDetail, RULES, STATIC_RULES}, 
+        staticrule,
+    }, 
 };
 
 pub enum JudgeResult {

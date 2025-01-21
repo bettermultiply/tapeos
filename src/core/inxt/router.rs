@@ -8,9 +8,13 @@ use std::time::Duration;
 use log::warn;
 
 use crate::{
-    base::{errort::{BoxResult, RouteError}, intent::{Intent, SubIntent}}, 
+    base::{
+        errort::{BoxResult, RouteError}, 
+        intent::{Intent, SubIntent}
+    }, 
     components::linkhub::seeker::{
-        add_resource_total_busy, calculate_base_dealing, change_resource_dealing, get_resource_average_busy, get_resource_description, get_resource_status_str, send_intent
+        add_resource_total_busy, calculate_base_dealing, change_resource_dealing, 
+        get_resource_average_busy, get_resource_description, get_resource_status_str, send_intent
     }, 
     tools::llmq::prompt
 };

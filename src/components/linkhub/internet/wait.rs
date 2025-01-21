@@ -8,21 +8,19 @@ use crate::{
             Intent, IntentSource, IntentType
         }, 
         message::{Message, MessageType}, 
-        resource::{RegisterServer, Status}
+        resource::{RegisterServer, ResourceType, Status}
     }, 
     components::linkhub::{
         internet::{
             resource::InternetResource, 
             seek::TAPE_ADDRESS
         }, 
-        waiter::{ResourceType, HEART, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
+        waiter::{HEART, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
     }, 
     core::inxt::intent::{execute, handler}
 };
 
 use tokio::{net::UdpSocket, sync::Mutex, time::interval};
-
-use super::seek::find_register;
 
 const NAME: &str = "";
 const DESCRIPTION: &str = "";
@@ -113,6 +111,15 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
     }
 }
 
+async fn find_register(socket: &UdpSocket, tape: bool, position: ((f32, f32), (f32, f32), (f32, f32))) {
+    let v4: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+    let ipv4 = IpAddr::V4(v4);
+    let r = RegisterServer::new(tape, None, None, position);
+    let r_json = serde_json::to_string(&r).unwrap();
+    let addr = SocketAddr::new(ipv4, 8000);
+    socket.send_to(&r_json.as_bytes(), addr).await.unwrap();
+} 
+
 async fn message_handler(
     src: SocketAddr, 
     amt: usize, 
@@ -129,9 +136,9 @@ async fn message_handler(
         let tape: RegisterServer = serde_json::from_str(data)?;
         *tape_i.lock().await = Some(tape.get_iaddr().clone());
         *tape_o.lock().await = Some(tape.get_oaddr().clone());
-        info!("tape o is ready: {}", tape_o.lock().await.is_some());
+        info!("tape o is ready: {}", tape_o.lock().await.unwrap().port());
         send_register(&socket, &tape.get_iaddr(), &m_json).await;
-        ITAPE.lock().await.lock().await.set_address(tape.get_iaddr().clone());
+        ITAPE.lock().await.set_address(tape.get_iaddr().clone());
         return Ok(());
     }
     if tape_o.lock().await.is_none() {

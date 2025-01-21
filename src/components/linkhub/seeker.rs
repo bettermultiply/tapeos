@@ -1,5 +1,3 @@
-
-
 // in this file, we will implement the seeker, which is used to seek the 
 // higher level system when not connected.
 
@@ -10,17 +8,31 @@
 // 3. internet
 
 use std::{
-    collections::HashMap, sync::{
-        mpsc::{Receiver, Sender}, Arc
-    }, time::Duration
+    collections::HashMap, 
+    sync::{
+        Arc,
+        mpsc::{Receiver, Sender}, 
+    }, 
+    time::Duration
 };
 use lazy_static::lazy_static;
 use log::info;
 use tokio::sync::Mutex;
 
-use crate::{base::{errort::BoxResult, intent::Intent, message::{Message, MessageType}, resource::Status}, components::linkhub::{bluetooth, internet, wifi}};
-use crate::base::resource::Resource;
-use super::{bluetooth::resource::BluetoothResource, internet::{resource::InternetResource, seek::send_message_internet}, waiter::{ResourceType, BTAPE, ITAPE, TAPE}};
+use crate::{
+    base::{
+        errort::BoxResult, 
+        intent::Intent, 
+        resource::{Status, ResourceType, Resource},
+        message::{Message, MessageType}, 
+    }, 
+    components::linkhub::{
+        wifi,
+        waiter::{BTAPE, ITAPE, TAPE},
+        bluetooth::{self, resource::BluetoothResource}, 
+        internet::{self, resource::InternetResource, seek::send_message_internet}, 
+    }
+};
 
 #[allow(dead_code)]
 enum SeekMethod {
@@ -75,22 +87,6 @@ pub async fn get_all_resource_info() -> String {
     }
 
     resources_info
-}
-
-pub async fn get_resource_info(name: &str) -> String {
-    match INTERNET_RESOURCES.lock().await.get(name) {
-        Some(r) => {
-            return format!("{}", r.lock().await);
-        },
-        None => (),
-    }
-    match BLUETOOTH_RESOURCES.lock().await.get(name) {
-        Some(r) => {
-            return format!("{}", r.lock().await);
-        },
-        None => (),
-    } 
-    "".to_string()
 }
 
 pub async fn get_resource_description(name: &str) -> String {
@@ -181,7 +177,6 @@ pub async fn get_resource_average_busy(name: &str) -> Duration {
     Duration::from_secs(0)
 }
 
-
 pub async fn calculate_base_dealing(name: &str) -> u64 {
 
     match INTERNET_RESOURCES.lock().await.get(name) {
@@ -222,8 +217,6 @@ pub async fn get_resource_status_str(name: &str) -> String {
     } 
     "".to_string()
 }
-
-
 
 async fn send_message_bluetooth(r: Arc<Mutex<BluetoothResource>>, i: &str, i_type: MessageType, id: Option<i64>) -> BoxResult<()> {
     let r = r.lock().await;
@@ -272,7 +265,7 @@ pub async fn reject_intent(resource_name: String, intent: &str) -> BoxResult<()>
                 }
             },
             ResourceType::Internet => {
-                match send_message_internet(ITAPE.lock().await.lock().await, intent, MessageType::Reject, None).await {
+                match send_message_internet(ITAPE.lock().await, intent, MessageType::Reject, None).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }
@@ -315,7 +308,7 @@ pub async fn send_intent(resource_name: String, intent: &str, id: i64) -> BoxRes
             },
             ResourceType::Internet => {
                 // TODO: may error here.
-                match send_message_internet(ITAPE.lock().await.lock().await, intent, MessageType::Intent, Some(id)).await {
+                match send_message_internet(ITAPE.lock().await, intent, MessageType::Intent, Some(id)).await {
                     Ok(()) => (),
                     Err(e) => return Err(e),
                 }

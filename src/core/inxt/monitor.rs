@@ -1,9 +1,8 @@
 // in this file, we will implement the monitor for the intent execution.
 // the monitor will monitor the execution of the intent and provide the feedback to the higher level system.
 
-use std::{thread::sleep, time::Duration};
-
 use log::info;
+use std::{thread::sleep, time::Duration};
 
 use crate::components::linkhub::{internet::seek::complete_intent, seeker::INTENT_QUEUE};
 

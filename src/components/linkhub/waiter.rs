@@ -2,16 +2,29 @@
 // when the resource and subsystem are querying to connect, 
 // the waiter will store the information of the resource or subsystem.
 // and maintain the connection.
-use std::{net::{IpAddr, Ipv4Addr, SocketAddr}, sync::{
-        mpsc::{Receiver, Sender}, Arc
-    }, time};
+use std::{
+    time,
+    net::{IpAddr, Ipv4Addr, SocketAddr}, 
+    sync::{
+        Arc,
+        mpsc::{Receiver, Sender}, 
+    }, 
+};
 use lazy_static::lazy_static;
 use tokio::sync::Mutex;
-use crate::{base::{errort::BoxResult, intent::Intent, resource::Status}, components::linkhub::{bluetooth, internet, wifi}};
+use crate::{
+    base::{
+        errort::BoxResult, 
+        intent::Intent, 
+        resource::{ResourceType, Status},
+    }, 
+    components::linkhub::{
+        bluetooth::{self, resource::BluetoothResource}, 
+        internet::{self, resource::InternetResource}, 
+        wifi,
+    }
+};
 
-use super::{bluetooth::resource::BluetoothResource, internet::resource::InternetResource};
-
-#[allow(dead_code)]
 pub enum WaitMethod {
     Bluetooth,
     Wifi,
@@ -19,48 +32,7 @@ pub enum WaitMethod {
     RFID,
     NFC,
 }
-
 const WAIT_METHOD: WaitMethod = WaitMethod::Bluetooth;
-pub enum ResourceType {
-    Bluetooth,
-    Internet,
-    Other,
-    None
-}
-
-impl ResourceType {
-    pub fn is_none(&self) -> bool {
-        match self {
-            ResourceType::None => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_bluetooth(&self) -> bool {
-        match self {
-            ResourceType::Bluetooth => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_internet(&self) -> bool {
-        match self {
-            ResourceType::Internet => true,
-            _ => false,
-        }
-    }
-
-    pub fn copy(&self) -> ResourceType {
-        match self {
-            ResourceType::Internet => ResourceType::Internet,
-            ResourceType::Bluetooth => ResourceType::Bluetooth,
-            ResourceType::None => ResourceType::None,
-            _ => ResourceType::Other,
-        }
-    }
-
-
-}
 
 type Queue<T> = Mutex<Vec<T>>;
 type Glo<T> = Arc<Mutex<T>>;
@@ -68,7 +40,7 @@ type Glo<T> = Arc<Mutex<T>>;
 lazy_static! {
     pub static ref TAPE: Arc<Mutex<ResourceType>> = Arc::new(Mutex::new(ResourceType::None));
     pub static ref BTAPE: Glo<Option<Arc<Mutex<BluetoothResource>>>> = Arc::new(Mutex::new(None));
-    pub static ref ITAPE: Arc<Mutex<Arc<Mutex<InternetResource>>>> = Arc::new(Mutex::new(Arc::new(Mutex::new(InternetResource::new("Tape".to_string(), "".to_string(), SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888), Status::new(true, (1.0, 1.0, 1.0), time::Duration::from_secs(0)))))));
+    pub static ref ITAPE: Arc<Mutex<InternetResource>> = Arc::new(Mutex::new(InternetResource::new("Tape".to_string(), "".to_string(), SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8888), Status::new(true, (1.0, 1.0, 1.0), time::Duration::from_secs(0)))));
     pub static ref WAIT_SEND: Mutex<Option<Sender<String>>> = Mutex::new(None);
     pub static ref WAIT_RECV: Mutex<Option<Receiver<String>>> = Mutex::new(None);
     pub static ref HEART: Mutex<bool> = Mutex::new(true);
@@ -81,7 +53,6 @@ pub async fn channel_init(wait_send: Option<Sender<String>>, wait_recv: Option<R
     WAIT_SEND.lock().await.replace(wait_send.unwrap());
     WAIT_RECV.lock().await.replace(wait_recv.unwrap());
 }
-
 
 pub async fn wait() -> BoxResult<()> {
     match WAIT_METHOD {

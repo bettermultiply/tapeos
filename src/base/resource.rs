@@ -14,6 +14,45 @@ use std::{net::SocketAddr, path::PathBuf, time::Duration};
 // process intents, which means it do not need an interpreter to interpret 
 // the intent.
 
+pub enum ResourceType {
+    Bluetooth,
+    Internet,
+    Other,
+    None
+}
+
+impl ResourceType {
+    pub fn is_none(&self) -> bool {
+        match self {
+            ResourceType::None => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_bluetooth(&self) -> bool {
+        match self {
+            ResourceType::Bluetooth => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_internet(&self) -> bool {
+        match self {
+            ResourceType::Internet => true,
+            _ => false,
+        }
+    }
+
+    pub fn copy(&self) -> ResourceType {
+        match self {
+            ResourceType::Internet => ResourceType::Internet,
+            ResourceType::Bluetooth => ResourceType::Bluetooth,
+            ResourceType::None => ResourceType::None,
+            _ => ResourceType::Other,
+        }
+    }
+}
+
 pub trait Resource: Send + Sync {
     fn get_name(&self) -> &str;
     fn get_description(&self) -> &str;

@@ -3,14 +3,18 @@
 use log::info;
 use rand::Rng;
 use tokio::sync::Mutex;
+use std::{sync::Arc, thread::sleep, time::Duration};
 
 use crate::{
-    base::{errort::BoxResult, intent::Intent, resource::Status}, components::linkhub::seeker::{reject_intent, INTENT_QUEUE}, core::inxt::{
-        disassembler::disassembler, preprocess::{process, JudgeResult}, router::router,
+    base::{errort::BoxResult, intent::Intent, resource::Status}, 
+    components::linkhub::seeker::{reject_intent, INTENT_QUEUE}, 
+    core::inxt::{
+        router::router,
+        disassembler::disassembler, 
+        preprocess::{process, JudgeResult}, 
     }
 };
 
-use std::{sync::Arc, thread::sleep, time::Duration};
 
 // this function is used to execute the intent.
 // it connect the whole inxt process.

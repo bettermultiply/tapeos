@@ -1,7 +1,6 @@
 use std::{fmt, net::SocketAddr};
-
-use crate::base::resource::{Interpreter, Resource, ResourceAddress, Status};
 use serde::{Deserialize, Serialize};
+use crate::base::resource::{Interpreter, Resource, ResourceAddress, Status};
 
 #[derive(Serialize, Deserialize)]
 pub struct InternetResource {
@@ -25,12 +24,6 @@ impl InternetResource {
 
     pub fn set_address(&mut self, addr: SocketAddr) {
         self.address = addr;
-    }
-}
-
-impl fmt::Display for InternetResource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}/{}/{};", self.get_name(), self.get_description(), self.display_status())
     }
 }
 
@@ -78,4 +71,10 @@ impl Resource for InternetResource {
         }
     }
 
+}
+
+impl fmt::Display for InternetResource {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}/{}/{};", self.get_name(), self.get_description(), self.display_status())
+    }
 }

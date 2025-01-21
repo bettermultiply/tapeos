@@ -28,8 +28,8 @@ use std::{
 use futures::{future, pin_mut, StreamExt};
 
 use crate::{
-    base::{errort::BoxResult, intent::{Intent, IntentSource, IntentType}},
-    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::send_intent, waiter::{ResourceType, BTAPE, TAPE, WAIT_RECV}},
+    base::{errort::BoxResult, intent::{Intent, IntentSource, IntentType}, resource::ResourceType,},
+    components::linkhub::{bluetooth::resource::BluetoothResource, seeker::send_intent, waiter::{BTAPE, TAPE, WAIT_RECV}},
     core::inxt::intent::handler
 };
 

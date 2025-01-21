@@ -14,9 +14,10 @@ async fn main() {
         tape_server();
     });
 
-    tokio::spawn(async {
-        let _ = wait("MySQL".to_string(), MYSQL_DESCRIPTION.to_string(), 8001).await;
-    });
+    start_all_resource();
+    // tokio::spawn(async {
+    //     let _ = wait("MySQL".to_string(), MYSQL_DESCRIPTION.to_string(), 8001).await;
+    // });
     // tokio::spawn(async {
     //     let _ = wait("MongoDB".to_string(), MONGO_DB_DESCRIPTION.to_string(), 8002).await;
     // });

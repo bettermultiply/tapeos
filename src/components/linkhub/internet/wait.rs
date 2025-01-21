@@ -83,6 +83,7 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
                     Ok(m_body) => {
                         if tape_i.lock().await.is_none() {
                             warn!("send to seeker please");
+                            continue;
                         }
 
                         let i = Intent::new(m_body.to_string(), IntentSource::Input, IntentType::Intent, None);
@@ -141,7 +142,7 @@ async fn message_handler(
         let tape: RegisterServer = serde_json::from_str(data)?;
         *tape_i.lock().await = Some(tape.get_iaddr().clone());
         *tape_o.lock().await = Some(tape.get_oaddr().clone());
-        info!("tape o is ready: {}", tape_o.lock().await.unwrap().port());
+        // info!("tape o is ready: {}", tape_o.lock().await.unwrap().port());
         send_register(&socket, &tape.get_iaddr(), &m_json).await;
         ITAPE.lock().await.set_address(tape.get_iaddr().clone());
         return Ok(());
@@ -156,7 +157,6 @@ async fn message_handler(
     } // waiter only accept message from Tape
 
     let m: Message = parse_message(&buf[..amt]);
-    info!("get {}", m.get_body());
     match m.get_type() {
         MessageType::Status => {
             status_report(&socket, &tape_i.lock().await.unwrap(), Arc::clone(&status)).await?

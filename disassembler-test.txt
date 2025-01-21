@@ -1,0 +1,240 @@
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;disinfect items:Smart disinfection cabinet;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher/Smart disinfection cabinet;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;dispose of trash:Delivery service;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;disinfect items:Smart disinfection cabinet;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;disinfect items:Smart disinfection cabinet;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;disinfect items:Smart disinfection cabinet;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean tableware:Smart dishwasher;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;disinfect items:Smart disinfection cabinet;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher/Smart disinfection cabinet;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;disinfect items:Smart disinfection cabinet;
+-------------------------------------------------
+
+
+Finishing up after dinner
+--------------------> 
+clean dishes:Smart dishwasher/Smart disinfection cabinet;clean floor:Smart sweeping robot;adjust lighting:Smart lighting system;store leftovers:Smart refrigerator;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+reserve conference room:Conference room management system;send meeting notices:Mail system;prepare meeting materials:Google Drive;debug conference room equipment:IT support team;set up lighting for meeting:Smart lighting system;clean conference room:Smart sweeping robot;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting agenda:Google Drive/Mail system;reserve conference room:Conference room management system;debug conference room equipment:IT support team;clean conference room floor:Smart sweeping robot;disinfect conference room items:Smart disinfection cabinet;set up meeting reminders:Smartphone/Mail system;share meeting materials:Google Drive/Mail system;ensure hot water availability:Instant water heater;adjust conference room lighting:Smart lighting system;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting agenda:Smartphone/Google Drive/Mail system;reserve conference room:Conference room management system;debug conference room equipment:IT support team;clean conference room floor:Smart sweeping robot;disinfect conference room items:Smart disinfection cabinet;prepare meeting materials:Smartphone/Google Drive/Mail system;set up lighting for meeting:Smart lighting system;ensure hot water availability:Instant water heater;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting agenda:Smartphone/Google Drive/Mail system;reserve conference room:Conference room management system;debug conference room equipment:IT support team;clean conference room floor:Smart sweeping robot;ensure hygiene of items:Smart disinfection cabinet;set up lighting environment:Smart lighting system;send meeting notices:Mail system;store meeting materials:Google Drive/MySQL/MongoDB;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting agenda:Google Drive/Mail system;reserve conference room:Conference room management system;debug conference room equipment:IT support team;clean conference room floor:Smart sweeping robot;ensure conference room hygiene:Smart disinfection cabinet;set up meeting schedule:Smartphone/Conference room management system;send meeting notices:Mail system;prepare meeting materials:Google Drive;ensure equipment readiness:IT support team;create a comfortable environment:Smart lighting system;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting agenda:Smartphone/Google Drive;reserve conference room:Conference room management system;clean conference room:Smart sweeping robot;debug conference room equipment:IT support team;send meeting notices:Mail system;set up lighting for meeting:Smart lighting system;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting agenda:Smartphone/Google Drive/Mail system;reserve conference room:Conference room management system;debug conference room equipment:IT support team;clean conference room floor:Smart sweeping robot;ensure hygiene of items:Smart disinfection cabinet;manage meeting schedule:Smartphone/Conference room management system/Mail system;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting materials:Google Drive/MySQL/MongoDB;reserve conference room:Conference room management system;clean conference room:Smart sweeping robot;debug conference room equipment:IT support team;send meeting notices:Mail system;set meeting reminders:Smartphone;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting agenda:Smartphone/Google Drive/Mail system;reserve conference room:Conference room management system;debug conference room equipment:IT support team;clean conference room floor:Smart sweeping robot;ensure hygiene of items:Smart disinfection cabinet;manage meeting schedule:Smartphone/Conference room management system/Mail system;send meeting notices:Mail system;share meeting materials:Google Drive/Mail system;collect feedback from participants:Mail system;
+-------------------------------------------------
+
+
+Preparing for a business meeting
+--------------------> 
+prepare meeting agenda:Google Drive/Mail system;schedule meeting:Conference room management system/Mail system;clean meeting room:Smart sweeping robot;set up meeting equipment:IT support team/Conference room management system;organize meeting materials:Google Drive/Mail system;send meeting invitations:Mail system;ensure hygiene:Smart disinfection cabinet;prepare refreshments:Smart refrigerator/Delivery service;adjust lighting:Smart lighting system;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+clean the kitchen floor:Smart sweeping robot;disinfect kitchen utensils:Smart disinfection cabinet;wash dishes:Smart dishwasher;check refrigerator for ingredients:Smart refrigerator;heat water for cooking:Instant water heater;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+clean the kitchen floor:Smart sweeping robot;disinfect kitchen items:Smart disinfection cabinet;wash tableware:Smart dishwasher;check refrigerator items:Smart refrigerator;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+clean the kitchen floor:Smart sweeping robot;disinfect kitchen utensils:Smart disinfection cabinet;wash kitchen utensils:Smart dishwasher;check refrigerator for ingredients:Smart refrigerator;order missing ingredients:Delivery service;set reminders for cooking steps:Smartphone;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+clean the kitchen floor:Smart sweeping robot;disinfect kitchen items:Smart disinfection cabinet;wash kitchen utensils:Smart dishwasher;check and replenish kitchen supplies:Smart refrigerator;heat water for cooking:Instant water heater;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+clean the kitchen floor:Smart sweeping robot;disinfect kitchen utensils:Smart disinfection cabinet;wash dishes:Smart dishwasher;check refrigerator for ingredients:Smart refrigerator;heat water for cooking:Instant water heater;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+clean the kitchen floor:Smart sweeping robot;disinfect kitchen utensils:Smart disinfection cabinet;wash dishes:Smart dishwasher;check refrigerator for ingredients:Smart refrigerator;order missing ingredients:Delivery service;heat water for cooking:Instant water heater;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+clean the kitchen floor:Smart sweeping robot;disinfect kitchen items:Smart disinfection cabinet;wash kitchen utensils:Smart dishwasher;check and replenish kitchen supplies:Smart refrigerator;heat water for cooking:Instant water heater;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+prepare ingredients:Smartphone/Smart refrigerator/Delivery service;clean kitchen:Smart sweeping robot/Smart dishwasher/Smart disinfection cabinet;heat water:Instant water heater;organize cooking tools:Smart home system;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+prepare ingredients:Smartphone/Smart refrigerator/Delivery service;clean kitchen:Smart sweeping robot/Smart dishwasher/Smart disinfection cabinet;heat water:Instant water heater;set up cooking environment:Smart lighting system/Smart home system;
+-------------------------------------------------
+
+
+Prepare for cooking
+--------------------> 
+prepare ingredients:Smartphone/Smart refrigerator/Delivery service;clean kitchen:Smart sweeping robot/Smart dishwasher/Smart disinfection cabinet;heat water:Instant water heater;set up cooking environment:Smart lighting system/Smart home system/Smart speaker;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan daily schedule:Mail system/Google Drive/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart dishwasher/Smart sweeping robot;entertainment and information:Smart speaker/Smartphone;lighting and environment:Smart lighting system;technical support:IT support team;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan daily schedule:Mail system/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart dishwasher/Smart sweeping robot;entertainment and information:Smart speaker/Smartphone;lighting and environment:Smart lighting system;document and data management:Google Drive/MongoDB/MySQL;technical support:IT support team;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan daily schedule:Mail system/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart sweeping robot/Smart dishwasher;lighting management:Smart lighting system;entertainment and information:Smart speaker;document and file management:Google Drive/MongoDB/MySQL;technical support:IT support team;disinfection and hygiene:Smart disinfection cabinet;water heating:Instant water heater;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan daily schedule:Mail system/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart sweeping robot/Smart dishwasher;entertainment and relaxation:Smart speaker/Smart lighting system;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan schedule:Mail system/Smartphone/Conference room management system;transportation arrangement:Self-driving car/Smartphone;clean dishes:Smart dishwasher;clean floor:Smart sweeping robot;manage lighting:Smart lighting system;manage water heating:Instant water heater;manage storage:Smart refrigerator/Smart home system;disinfect items:Smart disinfection cabinet;manage data:MySQL/MongoDB/Google Drive;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan daily schedule:Mail system/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart dishwasher/Smart sweeping robot;entertainment and information:Smart speaker/Smartphone;lighting and environment:Smart lighting system;document and data management:Google Drive/MongoDB/MySQL;technical support:IT support team;meeting and collaboration:Conference room management system/Mail system;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan daily schedule:Mail system/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;clean home:Smart sweeping robot/Smart dishwasher;manage documents and files:Google Drive/MongoDB/MySQL;control home environment:Smart lighting system/Smart home system;entertainment and information:Smart speaker/Smartphone;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan daily schedule:Mail system/Google Drive/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart dishwasher/Smart sweeping robot;entertainment and information:Smart speaker/Smartphone;lighting and environment:Smart lighting system;hygiene and safety:Smart disinfection cabinet/Instant water heater;technical support:IT support team;data management:MySQL/MongoDB;conference room management:Conference room management system;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan daily schedule:Mail system/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart dishwasher/Smart sweeping robot;entertainment and information:Smart speaker/Smartphone;lighting and environment:Smart lighting system;hygiene and safety:Smart disinfection cabinet/Instant water heater;
+-------------------------------------------------
+
+
+Arrange a full day for me
+--------------------> 
+plan schedule:Mail system/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart dishwasher/Smart sweeping robot;entertainment and information:Smart speaker/Smartphone;lighting management:Smart lighting system;water heating:Instant water heater;disinfection and storage:Smart disinfection cabinet;technical support:IT support team;data management:MySQL/MongoDB/Google Drive;conference room management:Conference room management system;
+-------------------------------------------------
+

@@ -19,23 +19,28 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
                 intent.get_description(), 
                 last_outcome.as_str()
             ).await;
-        if rough_intent == "None" {
-            warn!("no resource can solve {}", intent.get_description());
-            return None;
-        }
-        info!("rough disassembled intent: {}", rough_intent);
-            
+
         last_outcome = rough_intent.clone();
-        let to_parse_intent = rough_intent;
+        
+        info!("rough disassembled intent: {}", rough_intent);
+        
+        
+        let to_parse_intent = rough_intent.clone();
         match format_check(&to_parse_intent) {
             true => {
+                println!("
+{}
+--------------------> 
+{}
+-------------------------------------------------
+", intent.get_description(), rough_intent);
                 sub_intents = parse_rough_intent(to_parse_intent);
                 break;
             }
             false => {
                 tries_count -= 1;
                 if tries_count == 0 {
-                    warn!("disassembler: sub_intents error");
+                    println!("disassembler: sub_intents error");
                     return None;
                 }
             }
@@ -52,10 +57,14 @@ async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
     let resource_info = get_all_resource_info().await;
     let s_prompt = 
     "
-The user will provide description of Intent, last outcome(which is wrong or in error format) and information about all available resources, Resources will be given in format: `type_name/description/status`.
+The user will provide description of Intent, last outcome and information about all available resources, Resources will be given in format: `type_name/description/status`.
 And your work is to Disassemble the Intent into sub-intents based on available resources, so that they can be solve by different resources parallel.
 Here are some rules you need to know when disassemble intents:
-    1. you must know that not all resource must be used. So in the extreme case, if you judge that no resource can solve this intent, just return 'None'(without anything else);
+    1. You must try your best to use resources to finish intents.
+    2. There may be fuzzy intent that even not tell what should do to finish the intent, but you must guess what the intent really want to do by life knowledge, and disassemble it into many excutable sub-intent so that it can be will finish with better experience. 
+    3. You must know that not all resource must be used. So in the extreme case, if you judge that no resource can solve this intent, just return 'None'(without anything else);
+    4. Last outcome may be wrong, in error format or there are some hidden disassemble way you do not find(but if you still judge there are no ways to do that you can return None again.).
+    5. If different resources can finish same sub intent, but with different effect, the better way is disassemble it into multiple intent. 
 Outcome should be given in format: sub-intent_1:available_device_1/available_device_2/.../available_device_n;sub-intent_2:available_device_1/available_device_2/.../available_device_m;...;sub-intent_n:available_device_1/available_device_2/.../available_device_k;
 You should not add any blank except the name of resource have one, which means you should not change the resources' name as well.
 
@@ -65,8 +74,7 @@ last outcome:
 resources: 1. MySQL/MySQL can store, organize, and manage data in structured tables./avaiable; 2. MongoDB/MongoDB is a NoSQL database that stores data in flexible, JSON-like documents instead of tables./avaiable; 3. Google Drive/Google Drive is a cloud-based storage service that allows you to store, share, and access files from anywhere./avaiavle;
  
 Example Output1:
-store name 'BM':MySQL/MongoDB/Google Drive;
-store birthday '12.01':MongoDB/Google Drive/MySQL;
+store name 'BM':MySQL/MongoDB/Google Drive;store birthday '12.01':MongoDB/Google Drive/MySQL;
 
 Example Wrong Ouput1:
 store name 'BM': MySQL/MongoDB/Google Drive;    reason: wrong name, our resource is 'MySQL' not ' MySQL'

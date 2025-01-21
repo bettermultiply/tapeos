@@ -190,7 +190,7 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
             };
             let m = Message::new(MessageType::Response, m_body.to_string(), None);
             let m_json = serde_json::to_string(&m)?;
-            info!("send to src: {}", src);
+            // info!("send to src: {}", src);
             
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
         },
@@ -337,7 +337,7 @@ async fn send_heartbeat() -> BoxResult<()> {
         let m_json = serde_json::to_string(&m)?;
         match get_udp!().try_send_to(&m_json.as_bytes(), *address) {
             Ok(_) => {
-                info!("Heartbeat sent to {}", address)
+                // info!("Heartbeat sent to {}", address)
             },
             Err(e) => warn!("Failed to send heartbeat to {}: {}", address, e),
         }
@@ -347,7 +347,7 @@ async fn send_heartbeat() -> BoxResult<()> {
         loop {
             match get_udp!().recv_from(&mut heart_buf).await {
                 Ok(_) => {
-                    info!("resource <{}> alive!", address);
+                    // info!("resource <{}> alive!", address);
                     break;
                 },
                 Err(_) => warn!("heartbeat of {} retry remain {}", address, retry),

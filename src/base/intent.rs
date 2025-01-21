@@ -1,8 +1,5 @@
-
 // in this file, we will implement the intent structure and the intent related functions to manipulate the intent.
-
 use std::time::Instant;
-
 use serde::{Deserialize, Serialize};
 
 use crate::tools::idgen::{self, IdType};

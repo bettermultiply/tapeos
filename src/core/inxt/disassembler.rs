@@ -22,7 +22,7 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
             warn!("no resource can solve {}", intent.get_description());
             return None;
         }
-        info!("disassembler rough_intent: {}", rough_intent);
+        info!("rough disassembled intent: {}", rough_intent);
             
         last_outcome = rough_intent.clone();
         let to_parse_intent = rough_intent;
@@ -52,7 +52,9 @@ async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
     let s_prompt = 
     "
 The user will provide description of Intent, last outcome(which is wrong or in error format) and information about all available resources, Resources will be given in format: `type_name/description/status`.
-And your work is to Disassemble the Intent into sub-intents based on available resources, so that they can be solve by different resources parallel.But you must know that not all resource must be used. So in the extream case, if you judge that no resource can solve this intent, just return 'None'(without andything others);
+And your work is to Disassemble the Intent into sub-intents based on available resources, so that they can be solve by different resources parallel.
+Here are some rules you need to know when disassemble intents:
+    1. you must know that not all resource must be used. So in the extreme case, if you judge that no resource can solve this intent, just return 'None'(without anything else);
 Outcome should be given in format: sub-intent_1:available_device_1/available_device_2/.../available_device_n;sub-intent_2:available_device_1/available_device_2/.../available_device_m;...;sub-intent_n:available_device_1/available_device_2/.../available_device_k;
 You should not add any blank except the name of resource have one, which means you should not change the resources' name as well.
 

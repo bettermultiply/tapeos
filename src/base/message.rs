@@ -1,6 +1,5 @@
-use std::fmt::{self, Display};
-
 // maybe we should not focus on puzzling message but simple structed information.
+use std::fmt::{self, Display};
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]

@@ -3,29 +3,16 @@
 // and provide the interface for other components to access and update the 
 // information.
 
-use std::{net::SocketAddr, path::PathBuf, time::Duration};
-
 use bluer::Address;
 use serde::{Deserialize, Serialize};
+use std::{net::SocketAddr, path::PathBuf, time::Duration};
 
-
-// resource is a physical or virtual device(including human and software), 
+// resource is a physical or virtual device(including human agent and software), 
 // which can be used to execute intents. However, it may not be able to 
 // process intents directly, so we need an interpreter to interpret the 
 //intent and then execute it. *subsystem* is a special resource, which can 
 // process intents, which means it do not need an interpreter to interpret 
 // the intent.
-
-// we will display a virtual resource as model
-// struct Resource {
-//     name: String,
-//     type_name: String,
-//     description: String,
-//     address: ResourceAddress,
-//     status: Status,
-//     command: Vec<String>,
-//     interpreter: PathBuf,
-// }
 
 pub trait Resource: Send + Sync {
     fn get_name(&self) -> &str;

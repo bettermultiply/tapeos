@@ -1,9 +1,13 @@
 // in this file, we will store rules for judging the intent.
 
 use std::{
-    collections::HashMap, path::PathBuf, sync::{Arc, LazyLock}, time::{Duration, Instant}
+    collections::HashMap, 
+    path::PathBuf, 
+    sync::{Arc, LazyLock}, 
+    time::{Duration, Instant},
 };
 use chrono::Weekday;
+use tokio::sync::Mutex;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use crate::{
@@ -12,7 +16,6 @@ use crate::{
     base::intent::Intent,
     base::staticrule,
 };
-use tokio::sync::Mutex;
 
 lazy_static! {
     pub static ref RULES: Arc<Mutex<RuleSet>> = Arc::new(Mutex::new(RuleSet::new()));

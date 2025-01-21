@@ -83,7 +83,7 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
     
     find_register(SOCKET.lock().await.as_ref().unwrap(), true, v_position).await; 
     // every 60 seconds, check if the socket addresses are still valid
-    let mut heartbeat_inter = interval(Duration::from_secs(200));
+    let mut heartbeat_inter = interval(Duration::from_secs(20));
     let mut reroute_inter = interval(Duration::from_secs(60));
     let mut status_inter = interval(Duration::from_secs(10));
     
@@ -132,6 +132,7 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
                 });
             },
             _ = status_inter.tick() => {
+                info!("query status");
                 tokio::spawn(async move {
                     query_status().await.unwrap();
                     // sleep(Duration::from_secs(5));

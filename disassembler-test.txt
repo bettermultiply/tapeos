@@ -238,3 +238,63 @@ Arrange a full day for me
 plan schedule:Mail system/Smartphone;transportation arrangement:Self-driving car/Smartphone;meal preparation:Smart refrigerator/Delivery service;cleaning tasks:Smart dishwasher/Smart sweeping robot;entertainment and information:Smart speaker/Smartphone;lighting management:Smart lighting system;water heating:Instant water heater;disinfection and storage:Smart disinfection cabinet;technical support:IT support team;data management:MySQL/MongoDB/Google Drive;conference room management:Conference room management system;
 -------------------------------------------------
 
+
+Go to take a flight from home to Beijing
+--------------------> 
+book flight from home to Beijing:Smartphone;plan route to airport:Smartphone/Self-driving car;transport to airport:Self-driving car;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+plan route from home to airport:Smartphone/Self-driving car;book flight to Beijing:Smartphone;prepare luggage:Smart home system;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+plan route from home to airport:Smartphone/Self-driving car;book flight to Beijing:Smartphone;navigate from airport to Beijing:Smartphone/Self-driving car;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+book flight from home to Beijing:Smartphone;navigate to airport:Smartphone;transport to airport:Self-driving car;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+book flight from home to Beijing:Smartphone;navigate to airport:Smartphone/Self-driving car;travel to airport:Self-driving car;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+book flight from home to Beijing:Smartphone;navigate to airport:Smartphone/Self-driving car;prepare luggage:Smart home system;travel to airport:Self-driving car;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+plan route from home to airport:Smartphone/Self-driving car;book flight to Beijing:Smartphone;navigate from airport to Beijing:Smartphone/Self-driving car;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+plan route from home to airport:Smartphone/Self-driving car;book flight to Beijing:Smartphone;prepare luggage:Smart home system;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+plan route from home to airport:Smartphone/Self-driving car;book flight to Beijing:Smartphone;prepare luggage:Smart home system;
+-------------------------------------------------
+
+
+Go to take a flight from home to Beijing
+--------------------> 
+book flight from home to Beijing:Smartphone;navigate to airport:Smartphone/Self-driving car;travel to airport:Self-driving car;
+-------------------------------------------------
+

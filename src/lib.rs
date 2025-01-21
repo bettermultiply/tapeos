@@ -46,3 +46,5 @@ pub mod base {
     pub mod staticrule;
     pub mod errort;
 }
+
+pub mod config;

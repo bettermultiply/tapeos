@@ -2,7 +2,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 
-use log::warn;
+use log::{info, warn};
 
 use crate::base::resource::RegisterServer;
 
@@ -24,7 +24,7 @@ pub fn tape_server() {
                 // we should send two message: 
                 // 1. can it be a TAPE
                 // 2. its information so that we can match exactly.
-                // info!("process {src}");
+                info!("process {src}");
                 let data = match std::str::from_utf8(&buf[..amt]) {
                     Ok(s) => s,
                     Err(e) => {

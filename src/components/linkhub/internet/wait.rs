@@ -15,7 +15,7 @@ use crate::{
             resource::InternetResource, 
             seek::TAPE_ADDRESS
         }, 
-        waiter::{ResourceType, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
+        waiter::{ResourceType, HEART, ITAPE, TAPE, TAPE_INTENT_QUEUEUE}
     }, 
     core::inxt::intent::{execute, handler}
 };
@@ -55,7 +55,8 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
     find_register(&socket, false, v_position).await; 
     
     let mut register = interval(time::Duration::from_secs(10));
-
+    let mut check_register = interval(time::Duration::from_secs(40)); // check register must be slower than heart beat
+    let _ = check_register.tick();
     let mut input_buf = [0; 1024];
     loop {
         let mut buf = [0; 1024];
@@ -63,6 +64,16 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
         tokio::select! {
             _ = register.tick(), if TAPE.lock().await.is_none() => {
                 find_register(&socket, false, v_position).await; 
+            },
+            _ = check_register.tick(), if !TAPE.lock().await.is_none() => {
+                if *HEART.lock().await {
+                    *HEART.lock().await = false;
+                    continue;
+                }
+                warn!("no heart beat, disconnect");
+                *TAPE.lock().await = ResourceType::None;
+                *tape_i.lock().await = None;
+                *tape_o.lock().await = None;
             },
             Ok((amt, _))  = input_socket.recv_from(&mut input_buf) => {
                 match str::from_utf8(&input_buf[0..amt]) {
@@ -118,6 +129,7 @@ async fn message_handler(
         let tape: RegisterServer = serde_json::from_str(data)?;
         *tape_i.lock().await = Some(tape.get_iaddr().clone());
         *tape_o.lock().await = Some(tape.get_oaddr().clone());
+        info!("tape o is ready: {}", tape_o.lock().await.is_some());
         send_register(&socket, &tape.get_iaddr(), &m_json).await;
         ITAPE.lock().await.lock().await.set_address(tape.get_iaddr().clone());
         return Ok(());
@@ -132,12 +144,16 @@ async fn message_handler(
     } // waiter only accept message from Tape
 
     let m: Message = parse_message(&buf[..amt]);
+    info!("get {}", m.get_body());
     match m.get_type() {
         MessageType::Status => {
             status_report(&socket, &tape_i.lock().await.unwrap(), Arc::clone(&status)).await?
         }
         MessageType::Heartbeat 
-        => heart_beat_report(&socket, &tape_o.lock().await.unwrap()).await?,
+        => {
+            heart_beat_report(&socket, &tape_o.lock().await.unwrap()).await?;
+            *HEART.lock().await = true;
+        },
         MessageType::Finish => {
             *TAPE.lock().await = ResourceType::None;
             *tape_i.lock().await = None;
@@ -147,7 +163,7 @@ async fn message_handler(
             match m.get_body().as_ref() {
                 "Registerd" => {
                     *TAPE.lock().await = ResourceType::Internet;
-                    // info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
+                    info!("register successfully: {}", str::from_utf8(&buf[..amt]).expect("Fail to convert to String"));
                 },
                 "Intent Duplicate" => {
                     

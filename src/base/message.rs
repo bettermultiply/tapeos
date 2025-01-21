@@ -3,13 +3,12 @@ use std::fmt::{self, Display};
 // maybe we should not focus on puzzling message but simple structed information.
 use serde::{Serialize, Deserialize};
 
-// TODO
-
 #[derive(Serialize, Deserialize)]
 pub struct Message {
     m_type: MessageType,
 
     m_body: String,    
+    // in actual, this is id of intent.
     m_id: Option<i64>,
 }
 

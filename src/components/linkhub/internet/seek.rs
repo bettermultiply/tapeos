@@ -181,12 +181,13 @@ async fn message_handler(message: &str, src: SocketAddr) -> BoxResult<()> {
         MessageType::Register => {
             let r = message2resource(m.get_body())?;
             let m_body = match store_resource(r).await {
-                Some(_) => "Registerd",
-                None => "Duplicate"
+                _ => "Registerd",
+                // Some(_) => "Registerd",
+                // None => "Duplicate"
             };
             let m = Message::new(MessageType::Response, m_body.to_string(), None);
             let m_json = serde_json::to_string(&m)?;
-            // info!("send to src: {}", src);
+            info!("send to src: {}", src);
             
             get_udp!().send_to(&m_json.as_bytes().to_vec(), src).await?;
         },

@@ -61,7 +61,6 @@ impl BluetoothResource {
 }
 
 
-#[allow(unused)]
 impl Resource for BluetoothResource {
     fn get_name(&self) -> &str {
         &self.name

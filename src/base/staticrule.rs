@@ -63,7 +63,6 @@ pub fn reject(intent: &mut Intent) -> bool {
 pub fn emergency(intent: &mut Intent) -> bool {
     if intent.get_description().contains("emergency") {
         intent.set_emergency();
-        return true
     }
     false
 }

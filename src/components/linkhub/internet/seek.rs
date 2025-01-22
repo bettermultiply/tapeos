@@ -47,7 +47,7 @@ lazy_static! {
 
 pub async fn seek() -> BoxResult<()> {
 
-    let (tx, rx) = mpsc::channel::<(String, SocketAddr)>(1024);
+    let (tx, rx) = mpsc::channel::<(String, SocketAddr)>(8192);
 
     receive(tx).await;
     response(rx).await
@@ -57,7 +57,7 @@ pub async fn seek() -> BoxResult<()> {
 async fn receive(tx: Sender<(String, SocketAddr)>) {
     tokio::spawn(async move {
         let socket = UdpSocket::bind(INPUT_TAPE_ADDRESS).await.expect("Failed to bind to socket");
-        let mut buf = [0; 1024];
+        let mut buf = [0; 8192];
 
         loop {
             let (amt, src) = socket.recv_from(&mut buf).await.expect("Failed to receive data");
@@ -80,9 +80,9 @@ async fn response(mut rx: Receiver<(String, SocketAddr)>) -> BoxResult<()> {
     let mut heartbeat_inter = interval(Duration::from_secs(20));
     let mut reroute_inter = interval(Duration::from_secs(60));
     let mut status_inter = interval(Duration::from_secs(10));
-    let _ = heartbeat_inter.tick();
-    let _ = reroute_inter.tick();
-    let _ = status_inter.tick();
+    let _ = heartbeat_inter.tick().await;
+    let _ = reroute_inter.tick().await;
+    let _ = status_inter.tick().await;
     
     loop {
         tokio::select! {
@@ -369,7 +369,25 @@ async fn interpret_intent(interpreter: &Interpreter, i: &str) -> String {
     // match 
     let command = match interpreter {
         Interpreter::LLM(s) => {
-            let s_prompt = format!("the target commands are {s}, and you have to base on the intent given to choose one to execute");
+            let s_prompt = format!(
+"We'll give you some command with description in format: 'command_1:description;command_2:description;...;command_n:description'.
+And you need to choose one command base on the intent given by user to return. Remember, only choose one command and do not return anything others;
+
+Example Intent:
+I'll go into bedroom;
+
+Example Command:
+open:open the door of bedroom;close:close the door of bedroom;
+
+Example Output:
+open
+
+Wrong Output:
+open;       reason: ';' is not need.
+open close  reason: two command is give, we only need one.
+
+
+The target commands are '{s}'.");
             let u_prompt = format!("intent: {i}");
             llmq::prompt(&s_prompt, &u_prompt).await
         },
@@ -390,7 +408,7 @@ pub async fn send_message_internet(r: tokio::sync::MutexGuard<'_, InternetResour
         let m = Message::new(m_type, i.to_string(), id);
         serde_json::to_string(&m)?
     } else {
-        interpret_intent(r.get_interpreter(), i).await
+        format!("{}:{}",interpret_intent(r.get_interpreter(), i).await, id.unwrap()) 
     };
     let data: Vec<u8> = message.as_bytes().to_vec();
     get_udp!().send_to(&data, addr).await?;

@@ -31,6 +31,8 @@ const NAME: &str = "";
 const DESCRIPTION: &str = "";
 const PORT: u16 = 8080;
 const END: bool = true;
+const COMMAND:&str = "";
+
 
 pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResult<()> {
     if name.is_empty() {
@@ -58,8 +60,8 @@ pub async fn wait(mut name: String, mut desc: String, mut port: u16) -> BoxResul
     find_register(&socket, false, v_position).await; 
     
     let mut register = interval(time::Duration::from_secs(10));
-    let mut check_register = interval(time::Duration::from_secs(40)); // check register must be slower than heart beat
-    let _ = check_register.tick();
+    let mut check_register = interval(time::Duration::from_secs(30)); // check register must be slower than heart beat
+    let _ = check_register.tick().await;
     let mut input_buf = [0; 1024];
     loop {
         let mut buf = [0; 1024];
@@ -142,7 +144,7 @@ async fn message_handler(
         let tape: RegisterServer = serde_json::from_str(data)?;
         *tape_i.lock().await = Some(tape.get_iaddr().clone());
         *tape_o.lock().await = Some(tape.get_oaddr().clone());
-        info!("tape o is ready: {}", tape_o.lock().await.unwrap().port());
+        * HEART.lock().await = true;
         send_register(&socket, &tape.get_iaddr(), &m_json).await;
         ITAPE.lock().await.set_address(tape.get_iaddr().clone());
         return Ok(());
@@ -157,15 +159,14 @@ async fn message_handler(
     } // waiter only accept message from Tape
 
     let m: Message = parse_message(&buf[..amt]);
-    info!("get {}", m.get_body());
     match m.get_type() {
         MessageType::Status => {
             status_report(&socket, &tape_i.lock().await.unwrap(), Arc::clone(&status)).await?
         }
         MessageType::Heartbeat 
         => {
-            heart_beat_report(&socket, &tape_o.lock().await.unwrap()).await?;
             *HEART.lock().await = true;
+            heart_beat_report(&socket, &tape_o.lock().await.unwrap()).await?;
         },
         MessageType::Finish => {
             *TAPE.lock().await = ResourceType::None;
@@ -298,9 +299,16 @@ fn parse_message(v: &[u8]) -> Message {
     match serde_json::from_str(received_data) {
         Ok(m) => m,
         Err(e) => {
+            let command_id = received_data.split(":").collect::<Vec<&str>>();
+            if command_id.len() == 2 && COMMAND.contains(&command_id[0]) {
+                let id = match command_id[1].parse::<i64>() {
+                    Ok(i) => Some(i),
+                    _ => None,
+                };
+                return Message::new(MessageType::Intent, command_id[0].to_string(), id);
+            }
             warn!("{:?}", e);
-            // TODO: try to parse
-            Message::new(MessageType::Unknown, "".to_string(), None)
+            Message::new(MessageType::Unknown, received_data.to_string(), None)
         },
     }
 }

@@ -234,7 +234,7 @@ pub static STATIC_RULES: LazyLock<HashMap<&str, Rule>> = LazyLock::new(|| HashMa
     (
         "direct", 
         Rule {
-            id: 502,
+            id: 503,
             name: "direct".to_string(), 
             description: "send directly to resource".to_string(), 
             detail: RuleDetail::AsyncF("direct".to_string()), 

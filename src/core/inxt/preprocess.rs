@@ -19,6 +19,8 @@ use crate::{
     }, 
 };
 
+const SPECIAL_ID: i64 = 500;
+
 pub enum JudgeResult {
     Reject(String),
     Accept,
@@ -28,14 +30,7 @@ pub enum JudgeResult {
 // preprocess the intent.
 pub async fn process(intent: &mut Intent) -> JudgeResult {
     // info!("process: Judge the intent: {}", intent.get_description());
-    
-    match filter(intent).await {
-        Ok(_) => (),
-        Err(e) => return JudgeResult::Reject(format_reject(intent.get_description(), &format!("{}", e))),
-    }
-    
-    // info!("process: Filter passed");
-    
+      
     match spec_exec(intent).await {
         Ok(()) => (),
         Err(_) => return JudgeResult::Execution,
@@ -43,7 +38,14 @@ pub async fn process(intent: &mut Intent) -> JudgeResult {
 
     }
 
-    // info!("process: Special execution passed");
+    // info!("process: Special execution passed");  
+
+    match filter(intent).await {
+        Ok(_) => (),
+        Err(e) => return JudgeResult::Reject(format_reject(intent.get_description(), &format!("{}", e))),
+    }
+    
+    // info!("process: Filter passed");
 
     JudgeResult::Accept
 }
@@ -78,9 +80,8 @@ async fn spec_exec(intent: &mut Intent) -> BoxResult<()> {
         // return Ok(false);
     // }
 
-    let special_id = STATIC_RULES["reject"].get_id();
     for rule in STATIC_RULES.values().into_iter() {
-            if rule.get_id() < special_id {
+            if rule.get_id() < SPECIAL_ID {
             // if rule.get_id() < special_id || i_pair[1] != rule.get_name() {
             continue;
         }
@@ -103,9 +104,8 @@ async fn essential_judge(intent: &mut Intent) -> BoxResult<()> {
     // in essential part, all rule's will be hard coded.
     // essential rules will never be expired.
     // other than changing the code, user can't not change the rules.
-    let special_id = STATIC_RULES["reject"].get_id();
     for rule in STATIC_RULES.values() {
-        if rule.get_id() >= special_id {
+        if rule.get_id() >= SPECIAL_ID {
                 continue;
         }
         // info!("judge, rule id: {}",rule.get_name() );

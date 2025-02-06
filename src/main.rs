@@ -1,6 +1,6 @@
 use log::info;
 use tapeos::{
-    components::linkhub::internet::{seek::seek, wait::wait}, resourcepool::{DESCRIPTION_VEC, INTENT_INPUT_DESCRIPTION, MYSQL_DESCRIPTION, NAME_VEC}, tools::{idgen::init_id_generator, rserver::tape_server}
+    components::linkhub::internet::{seek::seek, wait::wait}, resourcepool::{DESCRIPTION_VEC, MYSQL_DESCRIPTION, NAME_VEC}, tools::{idgen::init_id_generator, rserver::tape_server}
 };
 use std::{thread::sleep, time::Duration,};
 

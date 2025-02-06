@@ -21,7 +21,7 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
             ).await;
 
         last_outcome = rough_intent.clone();
-        info!("rough disassembled intent: {}", rough_intent);
+        // info!("rough disassembled intent: {}", rough_intent);
             
         let to_parse_intent = rough_intent;
         match format_check(&to_parse_intent) {
@@ -69,10 +69,12 @@ Example Output1:
 store name 'BM':MySQL/MongoDB/Google Drive;store birthday '12.01':MongoDB/Google Drive/MySQL;
 
 Example Wrong Ouput1:
-store name 'BM': MySQL/MongoDB/Google Drive;    reason: wrong name, our resource is 'MySQL' not ' MySQL'
-store name 'BM': MySQL/MongoDB/Google Drive     reason: lack of ';'
+store name 'BM': MySQL/MongoDB/Google Drive;store birthday '12.01':MongoDB/Google Drive/MySQL;    reason: wrong name, our resource is 'MySQL' not ' MySQL'
 
-Example Input1:
+Example Wrong Ouput2:
+store name 'BM': MySQL/MongoDB/Google Drive;store birthday '12.01':MongoDB/Google Drive/MySQL     reason: lack of ';'
+
+Example Input2:
 Intent: Power on my computer
 last outcome: 
 resources: 1. MySQL/MySQL can store, organize, and manage data in structured tables./avaiable; 2. MongoDB/MongoDB is a NoSQL database that stores data in flexible, JSON-like documents instead of tables./avaiable; 3. Google Drive/Google Drive is a cloud-based storage service that allows you to store, share, and access files from anywhere./avaiavle;
@@ -80,10 +82,10 @@ resources: 1. MySQL/MySQL can store, organize, and manage data in structured tab
 Example Output2:
 None
 
-Example Wrong Ouput2:
+Example Wrong Ouput3:
 store name 'BM': MySQL/MongoDB/Google Drive;    reason: no resourc can do that
 
-None;                                           reason: lack of use some things other than None
+None;                                           reason: use some things other than None
 ";
 //     let s_prompt = 
 // "I'll give you some information about Intent, Last Outcome(which is wrong or error format) and Available Resources.
@@ -126,6 +128,9 @@ fn parse_rough_intent(rough_intent: String) -> Vec<SubIntent> {
     let sub_intents_pairs = rough_intent.split(";").filter(|s| !s.is_empty()).collect::<Vec<&str>>();
     for sub_intent_pair in sub_intents_pairs {
         let sub_intent = sub_intent_pair.split(":").collect::<Vec<&str>>();
+        if sub_intent.len() != 2 {
+            continue;
+        }
         let sub_intent_name = sub_intent[0].to_string();
         let sub_intent_resources = sub_intent[1].split("/").map(|r| r.to_string()).collect::<Vec<String>>();
 

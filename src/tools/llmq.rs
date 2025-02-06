@@ -1,9 +1,9 @@
 use genai::chat::{ChatMessage, ChatRequest};
 use genai::resolver::{AuthData, AuthResolver};
 use genai::Client;
-
-const API_KEY: &str = "sk-022b0b782c2849f4a37ff736374825bd";
-const MODEL: &str = "deepseek-chat";
+const GEMINI: &str = "AIzaSyCTjRoY450HtHZYEzXW2CRafFQEcHm6Mkk";
+// const API_KEY: &str = "sk-022b0b782c2849f4a37ff736374825bd";
+const MODEL: &str = "gemini-2.0-flash-lite-preview-02-05";
 
 pub async fn prompt(s_prompt: &str, u_prompt: &str) -> String {
 	let s_prompt = "First of all, You should give the outcome as fast as possible.\n".to_string() + s_prompt;
@@ -15,7 +15,7 @@ pub async fn prompt(s_prompt: &str, u_prompt: &str) -> String {
     let auth_resolver = 
     AuthResolver::from_resolver_fn(
 		|_| -> Result<Option<AuthData>, genai::resolver::Error> {
-			let key = API_KEY.to_string();
+			let key = GEMINI.to_string();
 			Ok(Some(AuthData::from_single(key)))
 		},
 	);
@@ -28,6 +28,5 @@ pub async fn prompt(s_prompt: &str, u_prompt: &str) -> String {
 			Err(_) => (),
 		}
 	}
-	
     "".to_string()
 }

@@ -1,6 +1,6 @@
 // in this file, we will implement the disassembler.
 
-use log::{info, warn};
+use log::warn;
 use regex::Regex;
 use crate::{
     tools::llmq::prompt,

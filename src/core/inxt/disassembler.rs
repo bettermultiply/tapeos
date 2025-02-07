@@ -21,7 +21,7 @@ pub async fn disassembler(intent: &mut Intent) -> Option<()> {
             ).await;
 
         last_outcome = rough_intent.clone();
-        // info!("rough disassembled intent: {}", rough_intent);
+        // warn!("rough disassembled intent: {}", rough_intent);
             
         let to_parse_intent = rough_intent;
         match format_check(&to_parse_intent) {
@@ -52,7 +52,7 @@ async fn disassemble_intent(intent: &str, last_outcome: &str) -> String {
 The user will provide description of Intent, last outcome and information about all available resources, Resources will be given in format: `type_name/description/status`.
 And your work is to Disassemble the Intent into sub-intents based on available resources, so that they can be solve by different resources parallel.
 Here are some rules you need to know when disassemble intents:
-    1. You must try your best to use resources to finish intents.
+    1. You must try your best to use resources to finish intents, must check if the name you give match the given list.
     2. There may be fuzzy intent that even not tell what should do to finish the intent, but you must guess what the intent really want to do by life knowledge, and disassemble it into many excutable sub-intent so that it can be will finish with better experience. 
     3. You must know that not all resource must be used. So in the extreme case, if you judge that no resource can solve this intent, just return 'None'(without anything else);
     4. Last outcome may be wrong, in error format or there are some hidden disassemble way you do not find(but if you still judge there are no ways to do that you can return None again.).
@@ -69,7 +69,7 @@ Example Output1:
 store name 'BM':MySQL/MongoDB/Google Drive;store birthday '12.01':MongoDB/Google Drive/MySQL;
 
 Example Wrong Ouput1:
-store name 'BM': MySQL/MongoDB/Google Drive;store birthday '12.01':MongoDB/Google Drive/MySQL;    reason: wrong name, our resource is 'MySQL' not ' MySQL'
+store name 'BM': MySQL/MongoDB/Google Drive;store birthday '12.01':MongoDB/Google Drive/ MySQL;    reason: wrong name, our resource is 'MySQL' not ' MySQL'
 
 Example Wrong Ouput2:
 store name 'BM': MySQL/MongoDB/Google Drive;store birthday '12.01':MongoDB/Google Drive/MySQL     reason: lack of ';'
@@ -131,9 +131,12 @@ fn parse_rough_intent(rough_intent: String) -> Vec<SubIntent> {
         if sub_intent.len() != 2 {
             continue;
         }
-        let sub_intent_name = sub_intent[0].to_string();
+        let mut sub_intent_name = sub_intent[0].to_string();
         let sub_intent_resources = sub_intent[1].split("/").map(|r| r.to_string()).collect::<Vec<String>>();
-
+        let some_name = sub_intent_name.strip_prefix(" ");
+        if some_name.is_some() {
+            sub_intent_name = some_name.unwrap().to_string();
+        }
         let sub_intent = 
             SubIntent::new(
                 sub_intent_name, sub_intent_resources
